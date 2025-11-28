@@ -1,0 +1,287 @@
+import discord
+from discord.ext import commands, tasks
+from discord import app_commands
+import random
+import os
+from typing import cast
+from utils.codebuddy_database import increment_user_score, reset_user_streak, get_leaderboard, get_user_stats, get_user_rank, get_score_gap
+from utils.codingquestions import get_random_question
+
+class CodeBuddyQuizCog(commands.Cog):
+    def __init__(self, bot: commands.Bot, question_channel_id: int):
+        self.bot = bot
+        self.channel_id = question_channel_id
+
+        self.current_question = None
+        self.current_answer = None
+        self.current_message = None
+        self.question_active = False
+        self.ignored_users = set()
+        self.bonus_active = False
+
+    async def cog_load(self):
+        self.post_question_loop.start()
+
+    async def cog_unload(self):
+        self.post_question_loop.cancel()
+
+    @tasks.loop(minutes=20)
+    async def post_question_loop(self):
+        try:
+            if self.question_active and self.current_message:
+                try:
+                    await self.current_message.delete()
+                except discord.NotFound:
+                    pass
+                except Exception as e:
+                    print(f"[Error deleting old message]: {e}")
+                self._reset_question_state()
+
+            channel = self.bot.get_channel(self.channel_id)
+            if not isinstance(channel, discord.abc.Messageable):
+                print(f"[Error] Channel ID {self.channel_id} not found or not messageable.")
+                return
+            
+            channel = cast(discord.abc.Messageable, channel)
+
+            try:
+                q = get_random_question()
+                self.current_question = q["question"]
+                self.current_answer = q["correct"]
+                self.question_active = True
+                self.ignored_users.clear()
+                self.bonus_active = random.random() < 0.1
+            except Exception as e:
+                print(f"[Error fetching question]: {e}")
+                return
+
+            options_text = "\n".join(q.get("options", []))
+            embed = discord.Embed(
+                title="❓ Coding Quiz",
+                description=f"**{self.current_question}**\n\n{options_text}",
+                color=discord.Color.blurple()
+            )
+            footer_text = "⚡ BONUS QUESTION – double points!" if self.bonus_active else "Answer with 'a', 'b', or 'c'."
+            embed.set_footer(text=footer_text)
+
+            try:
+                self.current_message = await channel.send(embed=embed)
+            except Exception as e:
+                print(f"[Error sending question message]: {e}")
+
+        except Exception as e:
+            print(f"[Unexpected error in post_question_loop]: {e}")
+
+    def _reset_question_state(self):
+        self.question_active = False
+        self.current_question = None
+        self.current_answer = None
+        self.current_message = None
+        self.ignored_users.clear()
+        self.bonus_active = False
+
+    @post_question_loop.before_loop
+    async def before_post_question(self):
+        await self.bot.wait_until_ready()
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        try:
+            if message.author.bot or not self.question_active or message.channel.id != self.channel_id:
+                return
+
+            user_id = message.author.id
+            content = message.content.lower().strip()
+
+            if content not in ["a", "b", "c"]:
+                return
+
+            if user_id in self.ignored_users:
+                return
+
+            # Richtige Antwort
+            if content == self.current_answer:
+                points = 2 if self.bonus_active else 1
+                extra_bonus = 0
+
+                try:
+                    await increment_user_score(user_id, points)
+                except Exception as e:
+                    print(f"[Error incrementing user score]: {e}")
+
+                try:
+                    lb = await get_leaderboard(100)
+                except Exception as e:
+                    print(f"[Error fetching leaderboard]: {e}")
+                    lb = []
+
+                streak = 0
+                for uid, score, s, best in lb:
+                    if uid == user_id:
+                        streak = s
+                        try:
+                            if streak == 3:
+                                extra_bonus = 1
+                                await increment_user_score(user_id, extra_bonus)
+                            elif streak == 5:
+                                extra_bonus = 2
+                                await increment_user_score(user_id, extra_bonus)
+                        except Exception as e:
+                            print(f"[Error applying streak bonus]: {e}")
+                        break
+
+                total_points = points + extra_bonus
+                title = f"🔥 {streak}x Streak!"
+                embed = discord.Embed(
+                    title=title,
+                    description=f"{message.author.mention} answered correctly and earned **{total_points} point(s)**!",
+                    color=discord.Color.green()
+                )
+                if extra_bonus > 0:
+                    embed.add_field(name="Streak Bonus", value=f"+{extra_bonus}", inline=True)
+                if self.bonus_active:
+                    embed.set_footer(text="⚡ Bonus Question!")
+                try:
+                    await message.channel.send(embed=embed)
+                except Exception as e:
+                    print(f"[Error sending success embed]: {e}")
+
+                self._reset_question_state()
+
+            # Falsche Antwort
+            else:
+                self.ignored_users.add(user_id)
+                try:
+                    await reset_user_streak(user_id)
+                except Exception as e:
+                    print(f"[Error resetting user streak]: {e}")
+
+                try:
+                    await message.add_reaction("❌")
+                    await message.channel.send(f"{message.author.mention} ❌ Wrong answer! Streak reset to 0.")
+                except discord.Forbidden:
+                    pass
+                except Exception as e:
+                    print(f"[Error sending wrong answer message]: {e}")
+
+        except Exception as e:
+            print(f"[Unexpected error in on_message]: {e}")
+
+    @app_commands.command(name="codeleaderboard", description="Show the top players with the most correct answers.")
+    async def leaderboard(self, interaction: discord.Interaction):
+        try:
+            # Immediate simple response first
+            embed = discord.Embed(
+                title="🏆 Code Leaderboard", 
+                description="Loading leaderboard...", 
+                color=discord.Color.gold()
+            )
+            await interaction.response.send_message(embed=embed)
+            
+            # Now get the actual data
+            lb = await get_leaderboard()
+            if not lb:
+                updated_embed = discord.Embed(
+                    title="🏆 Code Leaderboard", 
+                    description="No leaderboard data yet.", 
+                    color=discord.Color.gold()
+                )
+                try:
+                    await interaction.edit_original_response(embed=updated_embed)
+                except discord.NotFound:
+                    pass
+                except Exception:
+                    pass
+                return
+
+            desc = ""
+            medals = ["🥇", "🥈", "🥉"]
+            for i, (user_id, score, streak, best) in enumerate(lb, 1):
+                # Use cached user data only for speed
+                user = interaction.guild.get_member(user_id) if interaction.guild else None
+                if not user:
+                    user = self.bot.get_user(user_id)
+                mention = user.mention if user else f"<@{user_id}>"
+
+                medal = medals[i-1] if i <= len(medals) else f"{i}."
+                desc += f"{medal} {mention} - {score} pts 🔥 Streak: {streak} (Best: {best})\n"
+
+            final_embed = discord.Embed(title="🏆 Code Leaderboard", description=desc, color=discord.Color.gold())
+            
+            # Add timeout protection for edit operation
+            try:
+                await interaction.edit_original_response(embed=final_embed)
+            except discord.NotFound:
+                pass
+            except Exception:
+                pass
+
+        except discord.NotFound:
+            pass  # Interaction already expired
+        except Exception as e:
+            print(f"[Unexpected error in leaderboard command]: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message("Error fetching leaderboard.", ephemeral=True)
+                else:
+                    try:
+                        await interaction.edit_original_response(content="❌ Error fetching leaderboard.")
+                    except discord.NotFound:
+                        pass
+            except Exception:
+                pass
+            
+    @app_commands.command(name="codestats", description="Show your personal coding quiz stats.")
+    async def codestats(self, interaction: discord.Interaction):
+        try:
+            user_id = interaction.user.id
+            try:
+                score, streak, best = await get_user_stats(user_id)
+                rank = await get_user_rank(user_id)
+                gap, higher_id = await get_score_gap(user_id)
+            except Exception as e:
+                print(f"[Error fetching user stats]: {e}")
+                await interaction.response.send_message("Error fetching your stats.", ephemeral=True)
+                return
+
+            # Haupt-Embed
+            embed = discord.Embed(
+                title=f"{interaction.user.display_name}'s Stats",
+                color=discord.Color.blurple()
+            )
+            embed.add_field(name="💎 Points", value=str(score), inline=False)
+            embed.add_field(name="🔥 Streak", value=f"{streak} (current)\n{best} (best)", inline=False)
+            embed.add_field(name="🏆 Rank", value=f"#{rank}" if rank else "Unranked", inline=False)
+
+            # Footer mit Punkte-Differenz
+            if gap is not None and higher_id is not None:
+                try:
+                    higher_user = self.bot.get_user(higher_id) or await self.bot.fetch_user(higher_id)
+                    higher_name = higher_user.display_name if higher_user else f"User {higher_id}"
+                except Exception:
+                    higher_name = f"User {higher_id}"
+                embed.set_footer(text=f"⚡ {gap} point(s) behind {higher_name}")
+            else:
+                embed.set_footer(text="🏆 You are at the top!")
+
+            await interaction.response.send_message(embed=embed)
+
+        except Exception as e:
+            print(f"[Unexpected error in codestats command]: {e}")
+            try:
+                await interaction.response.send_message("Error displaying your stats.", ephemeral=True)
+            except Exception:
+                pass
+
+
+
+
+
+async def setup(bot: commands.Bot):
+    question_channel_id = int(os.getenv("QUESTION_CHANNEL_ID", "0"))
+    if question_channel_id == 0:
+        print("[Warning] QUESTION_CHANNEL_ID not set. QuizCog will not work correctly.")
+    try:
+        await bot.add_cog(CodeBuddyQuizCog(bot, question_channel_id))
+    except Exception as e:
+        print(f"[Error setting up QuizCog]: {e}")

@@ -1,5 +1,5 @@
 """
-Main entry point for the fun2oosh Discord bot.
+Main entry point for the Eigen Discord bot.
 
 This bot implements a casino-style economy with various games and commands.
 It uses discord.py for interactions, SQLAlchemy for async database operations,
@@ -75,6 +75,14 @@ class Fun2OoshBot(commands.Bot):
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
+        # Initialize CodeBuddy database
+        try:
+            from utils.codebuddy_database import init_db
+            await init_db()
+            logger.info("Initialized CodeBuddy database")
+        except Exception as e:
+            logger.error(f"Failed to initialize CodeBuddy database: {e}")
+
         # Load core cogs
         core_cogs = [
             'cogs.economy',
@@ -102,6 +110,10 @@ class Fun2OoshBot(commands.Bot):
             'cogs.invitetracker',
             'cogs.casino',
             'cogs.afk',
+            'cogs.codebuddy_quiz',
+            'cogs.codebuddy_flex',
+            'cogs.codebuddy_leaderboard',
+            'cogs.codebuddy_help',
         ]
 
         for ext in feature_cogs:
@@ -112,11 +124,11 @@ class Fun2OoshBot(commands.Bot):
                 logger.error(f'Failed to load {ext}: {e}')
 
         # Load modmail cog
-        try:
-            await self.load_extension('cogs.modmail')
-            logger.info('Loaded cogs.modmail')
-        except Exception as e:
-            logger.error(f'Failed to load cogs.modmail: {e}')
+        # try:
+        #     await self.load_extension('cogs.modmail')
+        #     logger.info('Loaded cogs.modmail')
+        # except Exception as e:
+        #     logger.error(f'Failed to load cogs.modmail: {e}')
 
         # Clear any existing commands and force fresh sync
         if self.config.guild_id:
@@ -162,7 +174,7 @@ class Fun2OoshBot(commands.Bot):
 
         # Set presence
         await self.change_presence(
-            activity=discord.Game(name="DM for modmail | ?help")
+            activity=discord.Game(name="?help")
         )
 
     async def on_command_error(self, ctx: commands.Context, error: commands.CommandError):

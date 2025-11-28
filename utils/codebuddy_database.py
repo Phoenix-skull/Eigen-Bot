@@ -1,0 +1,288 @@
+import aiosqlite
+import datetime
+
+DB_PATH = "botdata.db"
+
+async def init_db():
+    """Initialisiert die Datenbank und erstellt die Tabelle, falls sie nicht existiert."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS leaderboard (
+                user_id INTEGER PRIMARY KEY,
+                correct_answers INTEGER NOT NULL DEFAULT 0,
+                streak INTEGER NOT NULL DEFAULT 0,
+                best_streak INTEGER NOT NULL DEFAULT 0,
+                last_activity DATE
+            )
+        """)
+        
+        # Weekly leaderboard table
+        # Note: user_id is NOT a primary key here because we might want to store history,
+        # or at least we need (user_id, week_start) to be unique.
+        # Since we can't easily alter PK in sqlite, we'll just create it correctly if not exists.
+        # If it exists with wrong schema, we might need to drop it.
+        
+        # Check if table exists and has correct schema (simple check)
+        cursor = await db.execute("PRAGMA table_info(weekly_leaderboard)")
+        columns = await cursor.fetchall()
+        
+        # If table exists but user_id is the single PK, we should probably recreate it.
+        # For now, let's just try to create it if not exists with a composite PK.
+        # But since the user likely already has the wrong table, we will DROP it if it exists
+        # to ensure the schema is correct. This is a one-time migration for this integration.
+        
+        # We will check if we need to migrate by checking if we can insert a duplicate user_id
+        # or just by checking the PK definition.
+        # Simplest way for this context: Drop and recreate if it's the old schema.
+        
+        # Let's just use INSERT OR REPLACE in update_weekly_score instead of relying on complex schema changes
+        # if we want to avoid dropping data. But dropping is cleaner for "integration".
+        
+        # Let's try to create with composite primary key.
+        # If the table was created by the previous run with `user_id INTEGER PRIMARY KEY`,
+        # we should drop it to fix the schema.
+        
+        # Check if user_id is the only PK
+        is_bad_schema = False
+        if columns:
+            # columns is list of (cid, name, type, notnull, dflt_value, pk)
+            # pk > 0 means it is part of primary key.
+            pk_cols = [c[1] for c in columns if c[5] > 0]
+            if len(pk_cols) == 1 and pk_cols[0] == 'user_id':
+                is_bad_schema = True
+        
+        if is_bad_schema:
+            print("Migrating weekly_leaderboard schema...")
+            await db.execute("DROP TABLE weekly_leaderboard")
+            
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS weekly_leaderboard (
+                user_id INTEGER,
+                weekly_score INTEGER NOT NULL DEFAULT 0,
+                week_start DATE NOT NULL,
+                week_end DATE NOT NULL,
+                PRIMARY KEY (user_id, week_start)
+            )
+        """)
+        
+        await db.commit()
+        await migrate_leaderboard()  # Prüft und fügt fehlende Spalten hinzu
+
+async def migrate_leaderboard():
+    """Fügt fehlende Spalten hinzu, falls die Tabelle schon existierte ohne diese Spalten."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("PRAGMA table_info(leaderboard)")
+        columns = [row[1] async for row in cursor]
+
+        if "streak" not in columns:
+            await db.execute("ALTER TABLE leaderboard ADD COLUMN streak INTEGER NOT NULL DEFAULT 0")
+        if "best_streak" not in columns:
+            await db.execute("ALTER TABLE leaderboard ADD COLUMN best_streak INTEGER NOT NULL DEFAULT 0")
+        if "last_activity" not in columns:
+            await db.execute("ALTER TABLE leaderboard ADD COLUMN last_activity DATE")
+        await db.commit()
+
+def get_current_week():
+    """Returns the start and end date of the current week (Monday to Sunday)."""
+    today = datetime.date.today()
+    days_since_monday = today.weekday()
+    week_start = today - datetime.timedelta(days=days_since_monday)
+    week_end = week_start + datetime.timedelta(days=6)
+    return week_start, week_end
+
+async def update_weekly_score(user_id: int, points: int = 1):
+    """Updates weekly score for a user."""
+    week_start, week_end = get_current_week()
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Check if user has entry for current week
+        cursor = await db.execute(
+            "SELECT weekly_score FROM weekly_leaderboard WHERE user_id = ? AND week_start = ?",
+            (user_id, week_start)
+        )
+        row = await cursor.fetchone()
+        
+        if row:
+            # Update existing weekly score
+            new_score = row[0] + points
+            await db.execute(
+                "UPDATE weekly_leaderboard SET weekly_score = ? WHERE user_id = ? AND week_start = ?",
+                (new_score, user_id, week_start)
+            )
+        else:
+            # Create new weekly entry
+            await db.execute(
+                "INSERT INTO weekly_leaderboard (user_id, weekly_score, week_start, week_end) VALUES (?, ?, ?, ?)",
+                (user_id, points, week_start, week_end)
+            )
+        await db.commit()
+
+async def reset_weekly_leaderboard():
+    """Resets weekly leaderboard for new week."""
+    week_start, week_end = get_current_week()
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Delete old weekly entries (older than current week)
+        await db.execute(
+            "DELETE FROM weekly_leaderboard WHERE week_start < ?",
+            (week_start,)
+        )
+        await db.commit()
+
+async def get_weekly_leaderboard(limit=10):
+    """Gets current weekly leaderboard."""
+    week_start, week_end = get_current_week()
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT user_id, weekly_score FROM weekly_leaderboard WHERE week_start = ? ORDER BY weekly_score DESC LIMIT ?",
+            (week_start, limit)
+        )
+        return await cursor.fetchall()
+
+async def get_streak_leaderboard(limit=10):
+    """Gets leaderboard sorted by current streak."""
+    # await migrate_leaderboard() # Removed to prevent overhead/locking, called in init_db
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT user_id, streak, best_streak FROM leaderboard WHERE streak > 0 ORDER BY streak DESC, best_streak DESC LIMIT ?",
+            (limit,)
+        )
+        return await cursor.fetchall()
+
+async def update_user_activity(user_id: int):
+    """Updates last activity date for streak tracking."""
+    today = datetime.date.today()
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE leaderboard SET last_activity = ? WHERE user_id = ?",
+            (today, user_id)
+        )
+        await db.commit()
+
+async def increment_user_score(user_id: int, points: int = 1, reset_streak: bool = False):
+    """Erhöht den Score eines Users und aktualisiert Streaks."""
+    # await migrate_leaderboard()
+    today = datetime.date.today()
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT correct_answers, streak, best_streak, last_activity FROM leaderboard WHERE user_id = ?", 
+            (user_id,)
+        )
+        row = await cursor.fetchone()
+        if row:
+            current_score, current_streak, best_streak, last_activity = row
+            
+            # Check if streak should be reset due to missed days
+            if last_activity:
+                last_date = datetime.datetime.strptime(last_activity, "%Y-%m-%d").date()
+                days_diff = (today - last_date).days
+                if days_diff > 1:  # More than 1 day gap resets streak
+                    reset_streak = True
+            
+            new_streak = 0 if reset_streak else current_streak + 1
+            best_streak = max(best_streak, new_streak)
+            new_score = current_score + points
+            await db.execute(
+                "UPDATE leaderboard SET correct_answers = ?, streak = ?, best_streak = ?, last_activity = ? WHERE user_id = ?",
+                (new_score, new_streak, best_streak, today, user_id)
+            )
+        else:
+            streak = 0 if reset_streak else 1
+            best_streak = streak
+            await db.execute(
+                "INSERT INTO leaderboard (user_id, correct_answers, streak, best_streak, last_activity) VALUES (?, ?, ?, ?, ?)",
+                (user_id, points, streak, best_streak, today)
+            )
+        await db.commit()
+    
+    # Also update weekly score
+    await update_weekly_score(user_id, points)
+
+async def reset_user_streak(user_id: int):
+    """Setzt die aktuelle Streak eines Users auf 0 zurück."""
+    # await migrate_leaderboard()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE leaderboard SET streak = 0 WHERE user_id = ?", (user_id,))
+        await db.commit()
+
+async def get_leaderboard(limit=10):
+    """Gibt die Top-N User nach korrekt beantworteten Fragen zurück."""
+    # await migrate_leaderboard()
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT user_id, correct_answers, streak, best_streak FROM leaderboard ORDER BY correct_answers DESC LIMIT ?",
+            (limit,)
+        )
+        return await cursor.fetchall()
+    
+async def get_user_stats(user_id: int):
+    """Gibt die Stats (score, streak, best_streak) für einen bestimmten User zurück."""
+    # await migrate_leaderboard()
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT correct_answers, streak, best_streak FROM leaderboard WHERE user_id = ?",
+            (user_id,)
+        )
+        row = await cursor.fetchone()
+        if row:
+            return row  # (score, streak, best_streak)
+        else:
+            # Wenn der User noch nie gespielt hat: alles auf 0
+            return (0, 0, 0)
+
+
+async def get_user_rank(user_id: int):
+    """Gibt den Rang des Users im Leaderboard zurück (1 = bester)."""
+    # await migrate_leaderboard()
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Zuerst Score holen
+        cursor = await db.execute(
+            "SELECT correct_answers FROM leaderboard WHERE user_id = ?",
+            (user_id,)
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None  # User existiert nicht in DB
+        score = row[0]
+
+        # Rang berechnen: alle User zählen, die mehr Punkte haben
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM leaderboard WHERE correct_answers > ?",
+            (score,)
+        )
+        row = await cursor.fetchone()
+        higher_count = row[0] if row is not None else 0
+        return higher_count + 1
+
+async def get_score_gap(user_id: int):
+    """
+    Gibt die Punkte-Differenz und User-ID des nächsthöheren Spielers zurück.
+    Rückgabe: (gap, higher_user_id) oder (None, None) falls man Erster ist.
+    """
+    # await migrate_leaderboard()
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Eigenen Score holen
+        cursor = await db.execute(
+            "SELECT correct_answers FROM leaderboard WHERE user_id = ?",
+            (user_id,)
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None, None
+        score = row[0]
+
+        # Nächsthöheren Score + User-ID finden
+        cursor = await db.execute(
+            "SELECT user_id, correct_answers FROM leaderboard WHERE correct_answers > ? ORDER BY correct_answers ASC LIMIT 1",
+            (score,)
+        )
+        higher = await cursor.fetchone()
+        if higher:
+            higher_id, higher_score = higher
+            return higher_score - score, higher_id
+        else:
+            return None, None  # Kein höherer Spieler = User ist #1
+

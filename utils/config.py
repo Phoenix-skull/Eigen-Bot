@@ -20,6 +20,9 @@ class Config(BaseSettings):
     topgg_webhook_secret: Optional[str] = Field(default=None)
     redis_url: Optional[str] = Field(default=None)
 
+    # CodeBuddy settings
+    question_channel_id: Optional[int] = Field(default=None)
+
     # Game settings
     min_bet: int = Field(default=10)
     max_bet: int = Field(default=10000)

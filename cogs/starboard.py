@@ -16,6 +16,7 @@ from pathlib import Path
 from utils.helpers import create_success_embed, create_error_embed, create_warning_embed
 from types import SimpleNamespace
 from typing import Any
+from collections import defaultdict
 
 
 class ReactionProxy:
@@ -74,6 +75,8 @@ class StarboardSystem(commands.Cog):
         self.bot = bot
         self.database_path = Path("data/starboard.db")
         self.star_cache: Dict[int, Dict] = {}  # Cache for quick lookups
+        # Locks to prevent race conditions creating duplicate starboard posts
+        self._locks: Dict[int, asyncio.Lock] = {}
         self.ready = False
         
     async def cog_load(self):
@@ -713,6 +716,12 @@ class StarboardSystem(commands.Cog):
     async def handle_star_reaction(self, reaction: Any, user: Any, added: bool):
         """Process star reactions (add or remove) - assumes pre-validated emoji"""
         message = reaction.message
+        # Ignore bot accounts (including our own) to avoid counting bot reactions
+        try:
+            if getattr(user, 'bot', False):
+                return
+        except Exception:
+            pass
         
         # Get starboard settings (should exist from pre-check)
         settings = await self.get_starboard_settings(message.guild.id)
@@ -727,85 +736,95 @@ class StarboardSystem(commands.Cog):
         if not settings.get('self_star', True) and user.id == message.author.id:
             return
             
-        # Handle the star
+        # Handle the star with a per-message lock to avoid duplicate postings when reactions come in quick succession
         current_time = datetime.now(timezone.utc).isoformat()
-        
-        async with aiosqlite.connect(self.database_path) as db:
-            if added:
-                # Add star
-                try:
-                    await db.execute("""
-                        INSERT INTO user_stars (message_id, user_id, guild_id, starred_at)
-                        VALUES (?, ?, ?, ?)
-                    """, (message.id, user.id, message.guild.id, current_time))
-                    await db.commit()
-                    self.logger.debug(f"💫 Starboard: Star added to DB for message {message.id} by user {user.id}")
-                except Exception as e:
-                    # Star already exists, ignore (common duplicate insert)
-                    self.logger.debug(f"ℹ️ Starboard: Star already exists or error: {e}")
-                    return
-            else:
-                # Remove star
-                await db.execute("""
-                    DELETE FROM user_stars 
-                    WHERE message_id = ? AND user_id = ?
-                """, (message.id, user.id))
-                await db.commit()
-                self.logger.debug(f"💫 Starboard: Star removed from DB for message {message.id} by user {user.id}")
-            
-            # Get current star count
-            cursor = await db.execute("""
-                SELECT COUNT(*) FROM user_stars WHERE message_id = ?
-            """, (message.id,))
-            result = await cursor.fetchone()
-            star_count = result[0] if result else 0
-            self.logger.debug(f"📊 Starboard: Message {message.id} now has {star_count} stars (threshold: {settings['threshold']})")
-            
-            # Check if message exists in starred_messages
-            cursor = await db.execute("""
-                SELECT starboard_message_id, star_count FROM starred_messages WHERE message_id = ?
-            """, (message.id,))
-            existing = await cursor.fetchone()
-            
-            threshold = settings['threshold']
-            
-            if star_count >= threshold:
-                if existing:
-                    # Update existing starboard message
-                    self.logger.debug(f"📝 Starboard: Updating message {message.id} with {star_count} stars")
-                    await self.update_starboard_message(message, star_count, existing[0], settings)
-                    await db.execute("""
-                        UPDATE starred_messages 
-                        SET star_count = ?, last_updated = ?
-                        WHERE message_id = ?
-                    """, (star_count, current_time, message.id))
-                else:
-                    # Create new starboard message
-                    self.logger.debug(f"⭐ Starboard: Creating new starboard message for {message.id} with {star_count} stars (threshold: {threshold})")
-                    starboard_msg_id = await self.create_starboard_message(message, star_count, settings)
-                    if starboard_msg_id:
-                        self.logger.debug(f"✅ Starboard: Created message {starboard_msg_id} in starboard channel")
+
+        # Acquire/create lock for this message id
+        lock = self._locks.get(message.id)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._locks[message.id] = lock
+
+        async with lock:
+            async with aiosqlite.connect(self.database_path) as db:
+                if added:
+                    # Add star
+                    try:
                         await db.execute("""
-                            INSERT INTO starred_messages 
-                            (message_id, guild_id, channel_id, author_id, starboard_message_id, 
-                             star_count, content, attachments, created_at, last_updated)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (
-                            message.id, message.guild.id, message.channel.id, message.author.id,
-                            starboard_msg_id, star_count, message.content or "", 
-                            str([att.url for att in message.attachments]), current_time, current_time
-                        ))
+                            INSERT INTO user_stars (message_id, user_id, guild_id, starred_at)
+                            VALUES (?, ?, ?, ?)
+                        """, (message.id, user.id, message.guild.id, current_time))
+                        await db.commit()
+                        self.logger.debug(f"💫 Starboard: Star added to DB for message {message.id} by user {user.id}")
+                    except Exception as e:
+                        # Star already exists, ignore (common duplicate insert)
+                        self.logger.debug(f"ℹ️ Starboard: Star already exists or error: {e}")
+                else:
+                    # Remove star
+                    await db.execute("""
+                        DELETE FROM user_stars 
+                        WHERE message_id = ? AND user_id = ?
+                    """, (message.id, user.id))
+                    await db.commit()
+                    self.logger.debug(f"💫 Starboard: Star removed from DB for message {message.id} by user {user.id}")
+
+                # Get current star count
+                cursor = await db.execute("""
+                    SELECT COUNT(*) FROM user_stars WHERE message_id = ?
+                """, (message.id,))
+                result = await cursor.fetchone()
+                star_count = result[0] if result else 0
+                self.logger.debug(f"📊 Starboard: Message {message.id} now has {star_count} stars (threshold: {settings['threshold']})")
+
+                # Check if message exists in starred_messages
+                cursor = await db.execute("""
+                    SELECT starboard_message_id, star_count FROM starred_messages WHERE message_id = ?
+                """, (message.id,))
+                existing = await cursor.fetchone()
+
+                threshold = settings['threshold']
+
+                if star_count >= threshold:
+                    if existing:
+                        # Update existing starboard message
+                        self.logger.debug(f"📝 Starboard: Updating message {message.id} with {star_count} stars")
+                        await self.update_starboard_message(message, star_count, existing[0], settings)
+                        await db.execute("""
+                            UPDATE starred_messages 
+                            SET star_count = ?, last_updated = ?
+                            WHERE message_id = ?
+                        """, (star_count, current_time, message.id))
                     else:
-                        self.logger.error(f"❌ Starboard: Failed to create starboard message for {message.id}")
-            else:
-                if existing and star_count < threshold:
-                    # Remove from starboard if below threshold
-                    await self.remove_starboard_message(existing[0], settings)
-                    await db.execute("DELETE FROM starred_messages WHERE message_id = ?", (message.id,))
-                    
-            await db.commit()
+                        # Create new starboard message
+                        self.logger.debug(f"⭐ Starboard: Creating new starboard message for {message.id} with {star_count} stars (threshold: {threshold})")
+                        starboard_msg = await self.create_starboard_message(message, star_count, settings)
+                        if starboard_msg:
+                            starboard_msg_id = starboard_msg.id
+                            self.logger.debug(f"✅ Starboard: Created message {starboard_msg_id} in starboard channel")
+                            try:
+                                await db.execute("""
+                                    INSERT INTO starred_messages 
+                                    (message_id, guild_id, channel_id, author_id, starboard_message_id, 
+                                     star_count, content, attachments, created_at, last_updated)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (
+                                    message.id, message.guild.id, message.channel.id, message.author.id,
+                                    starboard_msg_id, star_count, message.content or "", 
+                                    str([att.url for att in message.attachments]), current_time, current_time
+                                ))
+                                await db.commit()
+                            except Exception as e:
+                                self.logger.exception(f"Error inserting starred_messages for {message.id}: {e}")
+                        else:
+                            self.logger.error(f"❌ Starboard: Failed to create starboard message for {message.id}")
+                else:
+                    if existing and star_count < threshold:
+                        # Remove from starboard if below threshold
+                        await self.remove_starboard_message(existing[0], settings)
+                        await db.execute("DELETE FROM starred_messages WHERE message_id = ?", (message.id,))
+                        await db.commit()
             
-    async def create_starboard_message(self, message: discord.Message, star_count: int, settings: Dict) -> Optional[int]:
+    async def create_starboard_message(self, message: discord.Message, star_count: int, settings: Dict) -> Optional[discord.Message]:
         """Create a new starboard message"""
         if not message.guild:
             self.logger.error(f"❌ Starboard: Message {message.id} is not in a guild")
@@ -823,8 +842,23 @@ class StarboardSystem(commands.Cog):
             self.logger.debug(f"📤 Starboard: Sending starboard embed to {starboard_channel.name}")
             embed = await self.create_starboard_embed(message, star_count, settings)
             starboard_msg = await starboard_channel.send(embed=embed)
+
+            # Try to add the star emoji reaction to both starboard msg and original message so it's obvious
+            try:
+                star_emoji = settings.get('star_emoji', '⭐')
+                await starboard_msg.add_reaction(star_emoji)
+            except Exception:
+                pass
+
+            try:
+                # Add reaction to original message as well (if permissions allow)
+                star_emoji = settings.get('star_emoji', '⭐')
+                await message.add_reaction(star_emoji)
+            except Exception:
+                pass
+
             self.logger.debug(f"✅ Starboard: Successfully posted message {starboard_msg.id} to starboard")
-            return starboard_msg.id
+            return starboard_msg
         except Exception:
             self.logger.exception(f"❌ Starboard: Error creating starboard message for {message.id}")
             return None
@@ -843,6 +877,16 @@ class StarboardSystem(commands.Cog):
             starboard_msg = await starboard_channel.fetch_message(starboard_msg_id)
             embed = await self.create_starboard_embed(message, star_count, settings)
             await starboard_msg.edit(embed=embed)
+            # Ensure the bot reacts to both starboard and original messages
+            try:
+                await starboard_msg.add_reaction(settings.get('star_emoji', '⭐'))
+            except Exception:
+                pass
+
+            try:
+                await message.add_reaction(settings.get('star_emoji', '⭐'))
+            except Exception:
+                pass
         except discord.NotFound:
             # Starboard message was deleted, remove from database
             async with aiosqlite.connect(self.database_path) as db:
@@ -894,8 +938,42 @@ class StarboardSystem(commands.Cog):
         # Author with avatar only
         embed.set_author(name=f"{message.author.display_name}", icon_url=message.author.display_avatar.url)
 
+        # Add star count field (single, non-duplicated display)
+        embed.add_field(name="Stars", value=f"{star_emoji} {star_count}", inline=True)
+
+        # Try to attach first image from attachments or embeds
+        image_url = None
+        try:
+            for att in getattr(message, 'attachments', []):
+                fname = getattr(att, 'filename', '') or ''
+                content_type = getattr(att, 'content_type', None)
+                if content_type and str(content_type).startswith('image'):
+                    image_url = att.url
+                    break
+                # Fallback to extension check
+                if any(fname.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                    image_url = att.url
+                    break
+
+            # Check embeds for an image if no attachment image
+            if not image_url:
+                for emb in getattr(message, 'embeds', []) or []:
+                    if getattr(emb, 'image', None) and getattr(emb.image, 'url', None):
+                        image_url = emb.image.url
+                        break
+        except Exception:
+            image_url = None
+
+        if image_url:
+            try:
+                embed.set_image(url=image_url)
+            except Exception:
+                pass
+
         # Minimal jump link field
         embed.add_field(name="Jump", value=f"[Jump to message]({message.jump_url})", inline=False)
+
+        # (Removed display of individual starrers to keep starboard compact)
 
         # No extra footer or timestamp to keep it compact
         return embed
