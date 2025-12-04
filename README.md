@@ -4,6 +4,11 @@
 
 Eigen Bot is an all-in-one Discord bot designed for thriving communities. Built with modern async Python and discord.py, it offers a complete suite of features from economy management and casino games to starboard highlights, voting systems, and custom tags—all with hybrid command support (both prefix `f?` and slash `/` commands).
 
+
+
+## Developers:-
+- [@youngcoder45](https://gitHub.com/youngcoder45)
+- [@1Frodox](https://gitHub.com/1Frodox)
 ---
 
 ## Core Features
