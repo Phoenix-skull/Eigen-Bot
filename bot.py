@@ -50,6 +50,7 @@ class Fun2OoshBot(commands.Bot):
             help_command=None
         )
 
+        self.start_time = discord.utils.utcnow()
         self.config = config
         self.engine = create_async_engine(config.database_url, echo=False)
         self.async_session_maker = async_sessionmaker(
@@ -107,13 +108,14 @@ class Fun2OoshBot(commands.Bot):
             'cogs.election',
             'cogs.whois_alias',
             'cogs.utility_extra',
-            'cogs.invitetracker',
+            'cogs.rules',
             'cogs.casino',
             'cogs.afk',
             'cogs.codebuddy_quiz',
             'cogs.codebuddy_flex',
             'cogs.codebuddy_leaderboard',
             'cogs.codebuddy_help',
+            'cogs.bump',
         ]
 
         for ext in feature_cogs:

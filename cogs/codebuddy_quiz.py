@@ -231,6 +231,49 @@ class CodeBuddyQuizCog(commands.Cog):
             except Exception:
                 pass
             
+    @commands.command(name="codeleaderboard", aliases=["clb"])
+    async def codeleaderboard_prefix(self, ctx):
+        """Show the top players with the most correct answers."""
+        try:
+            # Immediate simple response first
+            embed = discord.Embed(
+                title="🏆 Code Leaderboard", 
+                description="Loading leaderboard...", 
+                color=discord.Color.gold()
+            )
+            msg = await ctx.send(embed=embed)
+            
+            # Now get the actual data
+            lb = await get_leaderboard()
+            if not lb:
+                updated_embed = discord.Embed(
+                    title="🏆 Code Leaderboard", 
+                    description="No leaderboard data yet.", 
+                    color=discord.Color.gold()
+                )
+                await msg.edit(embed=updated_embed)
+                return
+
+            desc = ""
+            medals = ["🥇", "🥈", "🥉"]
+            for i, (user_id, score, streak, best) in enumerate(lb, 1):
+                # Use cached user data only for speed
+                user = ctx.guild.get_member(user_id) if ctx.guild else None
+                if not user:
+                    user = self.bot.get_user(user_id)
+                mention = user.mention if user else f"<@{user_id}>"
+
+                medal = medals[i-1] if i <= len(medals) else f"{i}."
+                desc += f"{medal} {mention} - {score} pts 🔥 Streak: {streak} (Best: {best})\n"
+
+            final_embed = discord.Embed(title="🏆 Code Leaderboard", description=desc, color=discord.Color.gold())
+            
+            await msg.edit(embed=final_embed)
+
+        except Exception as e:
+            print(f"[Unexpected error in codeleaderboard command]: {e}")
+            await ctx.send("❌ Error fetching leaderboard.")
+
     @app_commands.command(name="codestats", description="Show your personal coding quiz stats.")
     async def codestats(self, interaction: discord.Interaction):
         try:
@@ -272,6 +315,46 @@ class CodeBuddyQuizCog(commands.Cog):
                 await interaction.response.send_message("Error displaying your stats.", ephemeral=True)
             except Exception:
                 pass
+
+    @commands.command(name="codestats", aliases=["cst"])
+    async def codestats_prefix(self, ctx):
+        """Show your personal coding quiz stats."""
+        try:
+            user_id = ctx.author.id
+            try:
+                score, streak, best = await get_user_stats(user_id)
+                rank = await get_user_rank(user_id)
+                gap, higher_id = await get_score_gap(user_id)
+            except Exception as e:
+                print(f"[Error fetching user stats]: {e}")
+                await ctx.send("Error fetching your stats.")
+                return
+
+            # Haupt-Embed
+            embed = discord.Embed(
+                title=f"{ctx.author.display_name}'s Stats",
+                color=discord.Color.blurple()
+            )
+            embed.add_field(name="💎 Points", value=str(score), inline=False)
+            embed.add_field(name="🔥 Streak", value=f"{streak} (current)\n{best} (best)", inline=False)
+            embed.add_field(name="🏆 Rank", value=f"#{rank}" if rank else "Unranked", inline=False)
+
+            # Footer mit Punkte-Differenz
+            if gap is not None and higher_id is not None:
+                try:
+                    higher_user = self.bot.get_user(higher_id) or await self.bot.fetch_user(higher_id)
+                    higher_name = higher_user.display_name if higher_user else f"User {higher_id}"
+                except Exception:
+                    higher_name = f"User {higher_id}"
+                embed.set_footer(text=f"⚡ {gap} point(s) behind {higher_name}")
+            else:
+                embed.set_footer(text="🏆 You are at the top!")
+
+            await ctx.send(embed=embed)
+
+        except Exception as e:
+            print(f"[Unexpected error in codestats command]: {e}")
+            await ctx.send("Error displaying your stats.")
 
 
 

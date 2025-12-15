@@ -139,5 +139,66 @@ class CodeBuddyFlex(commands.Cog):
         file = discord.File(fp=output, filename="flex.png")
         await interaction.followup.send(file=file)
 
+    @commands.command(name="codeflex", aliases=["cfl"])
+    async def codeflex_prefix(self, ctx):
+        """Show your flex with points and streak"""
+        user = ctx.author
+
+        if not os.path.isfile(self.flex_bg_path):
+            await ctx.send("Background not found.")
+            return
+        
+        # Send a placeholder message
+        msg = await ctx.send("Generating flex card...")
+        
+        try:
+            base_img = Image.open(self.flex_bg_path).convert("RGBA")
+
+            # Avatar
+            async with aiohttp.ClientSession() as session:
+                async with session.get(user.display_avatar.url) as resp:
+                    avatar_bytes = await resp.read()
+            avatar_img = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA").resize((128, 128))
+
+            mask = self.create_hexagon_mask(avatar_img.size)
+            avatar_img.putalpha(mask)
+
+            avatar_center_x = 220
+            avatar_center_y = 256
+            avatar_x = avatar_center_x - avatar_img.width // 2
+            avatar_y = avatar_center_y - avatar_img.height // 2
+            base_img.paste(avatar_img, (avatar_x, avatar_y), avatar_img)
+
+            # Punkte, Streak, Name
+            points = await self.get_user_balance(user.id)
+            streak = await self.get_user_streak(user.id)
+            name = user.display_name[:13]  # maximal 13 Zeichen
+
+            font_size = 60
+            try:
+                font = ImageFont.truetype(self.font_path, font_size)
+            except IOError:
+                font = ImageFont.load_default()
+
+            text_x = int(base_img.width * 0.45)
+            text_y = int(base_img.height * 0.25)
+
+            self.draw_gradient_text(base_img, name, font, (text_x, text_y), self.gradient_colors)
+            self.draw_gradient_text(base_img, f"Points: {points}", font, (text_x, text_y + font_size + 10), self.gradient_colors)
+            self.draw_gradient_text(base_img, f"Streak: {streak}", font, (text_x, text_y + 2*(font_size + 10)), self.gradient_colors)
+
+            # Rahmen hinzufügen
+            self.draw_gradient_border(base_img, thickness=10)
+
+            output = io.BytesIO()
+            base_img.save(output, format="PNG")
+            output.seek(0)
+            file = discord.File(fp=output, filename="flex.png")
+            await msg.delete()
+            await ctx.send(file=file)
+        except Exception as e:
+            print(f"[Error in codeflex prefix command]: {e}")
+            await msg.edit(content="❌ Error generating flex card.")
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(CodeBuddyFlex(bot))

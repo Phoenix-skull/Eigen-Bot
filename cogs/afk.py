@@ -20,12 +20,14 @@ class AFKSystem(commands.Cog):
         self.bot = bot
         self.database_path = Path("data/afk.db")
         self.afk_cache: Dict[int, Dict] = {}  # Cache for quick lookups
+        self.ignored_channels_cache: set[int] = set() # Cache for ignored channels
         self.ready = asyncio.Event()
         
     async def cog_load(self):
         """Initialize the AFK system when the cog loads"""
         await self.init_database()
         await self.load_afk_cache()
+        await self.load_ignored_channels()
         self.ready.set()
         
     async def init_database(self):
@@ -43,7 +45,20 @@ class AFKSystem(commands.Cog):
                     mention_count INTEGER DEFAULT 0
                 )
             """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS ignored_channels (
+                    channel_id INTEGER PRIMARY KEY,
+                    guild_id INTEGER NOT NULL
+                )
+            """)
             await db.commit()
+
+    async def load_ignored_channels(self):
+        """Load ignored channels into cache"""
+        async with aiosqlite.connect(self.database_path) as db:
+            cursor = await db.execute("SELECT channel_id FROM ignored_channels")
+            rows = await cursor.fetchall()
+            self.ignored_channels_cache = {row[0] for row in rows}
             
     async def load_afk_cache(self):
         """Load all AFK users into cache for quick access"""
@@ -267,7 +282,6 @@ class AFKSystem(commands.Cog):
         help="List all currently AFK users in the server",
         aliases=["afkstatus", "whoafk"]
     )
-    @app_commands.describe()
     @commands.guild_only()
     async def afk_list_command(self, ctx: commands.Context):
         """Show all currently AFK users in the server"""
@@ -352,6 +366,69 @@ class AFKSystem(commands.Cog):
         embed.timestamp = datetime.now(timezone.utc)
         await ctx.send(embed=embed)
 
+    @commands.hybrid_command(name="afkignore", help="Toggle ignoring AFK mentions in this channel")
+    @commands.has_permissions(manage_channels=True)
+    @commands.guild_only()
+    async def afk_ignore(self, ctx: commands.Context):
+        """Toggle ignoring AFK mentions in this channel"""
+        await self.ready.wait()
+        
+        channel_id = ctx.channel.id
+        guild_id = ctx.guild.id
+        
+        if channel_id in self.ignored_channels_cache:
+            # Remove from ignore list
+            async with aiosqlite.connect(self.database_path) as db:
+                await db.execute("DELETE FROM ignored_channels WHERE channel_id = ?", (channel_id,))
+                await db.commit()
+            self.ignored_channels_cache.remove(channel_id)
+            await ctx.send(f"✅ AFK mentions are now **enabled** in {ctx.channel.mention}")
+        else:
+            # Add to ignore list
+            async with aiosqlite.connect(self.database_path) as db:
+                await db.execute("INSERT INTO ignored_channels (channel_id, guild_id) VALUES (?, ?)", (channel_id, guild_id))
+                await db.commit()
+            self.ignored_channels_cache.add(channel_id)
+            await ctx.send(f"🚫 AFK mentions are now **disabled** in {ctx.channel.mention}")
+
+    @commands.hybrid_command(name="afkignored", help="List channels where AFK mentions are ignored")
+    @commands.guild_only()
+    async def afk_ignored(self, ctx: commands.Context):
+        """List channels where AFK mentions are ignored"""
+        await self.ready.wait()
+        
+        ignored_channels = []
+        for channel_id in self.ignored_channels_cache:
+            channel = ctx.guild.get_channel(channel_id)
+            if channel:
+                ignored_channels.append(channel.mention)
+                
+        if not ignored_channels:
+            await ctx.send("AFK mentions are enabled in all channels.")
+        else:
+            await ctx.send(f"AFK mentions are ignored in: {', '.join(ignored_channels)}")
+
+    @commands.hybrid_command(name="afkreset", help="Reset AFK status for a user (Admin only)")
+    @commands.has_permissions(manage_messages=True)
+    @commands.guild_only()
+    async def afk_reset(self, ctx: commands.Context, member: discord.Member):
+        """Reset AFK status for a user"""
+        await self.ready.wait()
+        
+        if not self.is_afk(member.id):
+            await ctx.send(f"{member.display_name} is not AFK.")
+            return
+            
+        await self.remove_afk(member.id)
+        await ctx.send(f"✅ Reset AFK status for {member.display_name}")
+
+    @commands.hybrid_command(name="afkclear", help="Clear AFK status for a user (Admin only)")
+    @commands.has_permissions(manage_messages=True)
+    @commands.guild_only()
+    async def afk_clear(self, ctx: commands.Context, member: discord.Member):
+        """Clear AFK status for a user (Alias for reset)"""
+        await self.afk_reset(ctx, member)
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         """Handle messages to check for AFK users and auto-return"""
@@ -392,6 +469,10 @@ class AFKSystem(commands.Cog):
                     
         # Check for mentions of AFK users
         if message.mentions:
+            # Check if channel is ignored
+            if message.channel.id in self.ignored_channels_cache:
+                return
+
             for mentioned_user in message.mentions:
                 # Skip if mentioning themselves
                 if mentioned_user.id == message.author.id:

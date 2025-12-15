@@ -32,9 +32,9 @@ class CodeBuddyHelpCog(commands.Cog):
         embed.add_field(
             name=" Leaderboard Commands",
             value=(
-                "`/codeleaderboard` - View the overall leaderboard (all-time top performers)\n"
-                "`/codeweek` - View weekly leaderboard (resets every Monday)\n"
-                "`/codestreak` - View streak leaderboard (current and best streaks)"
+                "`/codeleaderboard` (or `?clb`) - View the overall leaderboard (all-time top performers)\n"
+                "`/codeweek` (or `?cw`) - View weekly leaderboard (resets every Monday)\n"
+                "`/codestreak` (or `?cs`) - View streak leaderboard (current and best streaks)"
             ),
             inline=False
         )
@@ -43,8 +43,8 @@ class CodeBuddyHelpCog(commands.Cog):
         embed.add_field(
             name=" Personal Stats Commands",
             value=(
-                "`/codestats` - View your personal statistics and performance\n"
-                "`/codeflex` - Generate a beautiful visual profile card with your stats"
+                "`/codestats` (or `?cst`) - View your personal statistics and performance\n"
+                "`/codeflex` (or `?cfl`) - Generate a beautiful visual profile card with your stats"
             ),
             inline=False
         )
@@ -94,6 +94,95 @@ class CodeBuddyHelpCog(commands.Cog):
         
         # Edit the original response with the help embed
         await interaction.edit_original_response(content=None, embed=embed, view=view)
+
+    @commands.command(name="quizhelp")
+    async def quizhelp_prefix(self, ctx):
+        """Displays help information about all available commands."""
+        
+        # Send immediate response to prevent timeout
+        msg = await ctx.send("Loading help information...")
+        
+        # Create main help embed
+        embed = discord.Embed(
+            title=" CodeBuddy Help",
+            description="Welcome to CodeBuddy! Here are all available commands and features:",
+            color=discord.Color.blue()
+        )
+        
+        # Add bot information
+        embed.add_field(
+            name=" About CodeBuddy",
+            value="CodeBuddy is an interactive coding quiz bot that posts questions every 20 minutes. "
+                  "Answer with 'a', 'b', or 'c' to earn points and build streaks!",
+            inline=False
+        )
+        
+        # Quiz Commands
+        embed.add_field(
+            name=" Leaderboard Commands",
+            value=(
+                "`/codeleaderboard` (or `?clb`) - View the overall leaderboard (all-time top performers)\n"
+                "`/codeweek` (or `?cw`) - View weekly leaderboard (resets every Monday)\n"
+                "`/codestreak` (or `?cs`) - View streak leaderboard (current and best streaks)"
+            ),
+            inline=False
+        )
+        
+        # Personal Commands
+        embed.add_field(
+            name=" Personal Stats Commands",
+            value=(
+                "`/codestats` (or `?cst`) - View your personal statistics and performance\n"
+                "`/codeflex` (or `?cfl`) - Generate a beautiful visual profile card with your stats"
+            ),
+            inline=False
+        )
+        
+        # How to Play
+        embed.add_field(
+            name=" How to Play",
+            value=(
+                "1. Wait for quiz questions (posted every 20 minutes)\n"
+                "2. Answer quickly with `a`, `b`, or `c`\n"
+                "3. Build streaks by answering consecutively\n"
+                "4. Watch out for **BONUS** questions (double points!)\n"
+                "5. Compete on weekly and overall leaderboards"
+            ),
+            inline=False
+        )
+        
+        # Scoring System
+        embed.add_field(
+            name=" Scoring System",
+            value=(
+                "• **Correct Answer**: +1 point\n"
+                "• **Bonus Question**: +2 points\n"
+                "• **Wrong Answer**: Streak resets to 0\n"
+                "• **Streaks**: Track consecutive correct answers"
+            ),
+            inline=False
+        )
+        
+        # Additional Features
+        embed.add_field(
+            name=" Special Features",
+            value=(
+                "• **Weekly Reset**: Leaderboards reset every Monday\n"
+                "• **Visual Cards**: Custom profile cards with gradient text\n"
+                "• **Streak Tracking**: Current streaks and personal bests\n"
+                "• **Fair Play**: One answer per question per user"
+            ),
+            inline=False
+        )
+        
+        # Footer
+        embed.set_footer(text="Need more help? Ask in the server or check our GitHub!")
+        
+        # Create buttons for additional help
+        view = HelpButtonView()
+        
+        # Edit the original response with the help embed
+        await msg.edit(content=None, embed=embed, view=view)
 
 class HelpButtonView(discord.ui.View):
     def __init__(self):

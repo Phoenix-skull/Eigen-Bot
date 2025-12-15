@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 from discord import app_commands
 import random
 import re
+import math
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict
 
@@ -138,6 +139,58 @@ class UtilityExtra(commands.Cog):
         if invite.expires_at:
             embed.add_field(name="Expires", value=f"<t:{int(invite.expires_at.timestamp())}:R>", inline=True)
         await ctx.reply(embed=embed)
+
+    @commands.hybrid_command(name="avatar", help="Get a user's avatar.")
+    @app_commands.describe(user="The user to get the avatar of")
+    async def avatar(self, ctx: commands.Context, user: Optional[discord.User] = None):
+        user = user or ctx.author
+        embed = discord.Embed(title=f"{user.display_name}'s Avatar", color=discord.Color.random())
+        embed.set_image(url=user.display_avatar.url)
+        await ctx.reply(embed=embed)
+
+    @commands.hybrid_command(name="serverinfo", help="Get server info/stats.")
+    @commands.guild_only()
+    async def serverinfo(self, ctx: commands.Context):
+        guild = ctx.guild
+        embed = discord.Embed(title=f"Server Info: {guild.name}", color=discord.Color.blue())
+        if guild.icon:
+            embed.set_thumbnail(url=guild.icon.url)
+        
+        embed.add_field(name="Owner", value=guild.owner.mention, inline=True)
+        embed.add_field(name="ID", value=str(guild.id), inline=True)
+        embed.add_field(name="Created At", value=discord.utils.format_dt(guild.created_at, 'R'), inline=True)
+        embed.add_field(name="Members", value=str(guild.member_count), inline=True)
+        embed.add_field(name="Roles", value=str(len(guild.roles)), inline=True)
+        embed.add_field(name="Channels", value=str(len(guild.channels)), inline=True)
+        
+        await ctx.reply(embed=embed)
+
+    @commands.hybrid_command(name="color", help="Show a color using hex.")
+    @app_commands.describe(hex_code="Hex color code (e.g., #FF0000)")
+    async def color(self, ctx: commands.Context, hex_code: str):
+        hex_code = hex_code.strip('#')
+        try:
+            color_int = int(hex_code, 16)
+        except ValueError:
+            return await ctx.reply("Invalid hex code.")
+            
+        if color_int > 0xFFFFFF:
+             return await ctx.reply("Invalid hex code range.")
+
+        embed = discord.Embed(title=f"Color #{hex_code.upper()}", color=color_int)
+        embed.set_thumbnail(url=f"https://singlecolorimage.com/get/{hex_code}/400x100")
+        await ctx.reply(embed=embed)
+
+    @commands.hybrid_command(name="distance", help="Get the distance between two sets of coordinates (x1,y1 x2,y2).")
+    @app_commands.describe(coords1="First coordinates (x1,y1)", coords2="Second coordinates (x2,y2)")
+    async def distance(self, ctx: commands.Context, coords1: str, coords2: str):
+        try:
+            x1, y1 = map(float, coords1.split(','))
+            x2, y2 = map(float, coords2.split(','))
+            dist = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            await ctx.reply(f"Distance between ({x1},{y1}) and ({x2},{y2}) is **{dist:.2f}**")
+        except ValueError:
+            await ctx.reply("Invalid format. Use `x,y` for coordinates. Example: `?distance 0,0 3,4`")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(UtilityExtra(bot))

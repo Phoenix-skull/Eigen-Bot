@@ -247,6 +247,50 @@ class Misc(commands.Cog):
         
         await ctx.send(embed=embed)
 
+    @commands.command(name='uptime', hidden=True)
+    async def uptime(self, ctx: commands.Context):
+        """Show the bot's uptime."""
+        if not hasattr(self.bot, 'start_time'):
+            await ctx.send("Start time not tracked.")
+            return
+
+        now = discord.utils.utcnow()
+        delta = now - self.bot.start_time
+        
+        days = delta.days
+        hours, remainder = divmod(delta.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        
+        uptime_str = f"{days}d {hours}h {minutes}m {seconds}s"
+        await ctx.send(f"⏱️ **Uptime:** {uptime_str}")
+
+    @commands.command(name='diagnose', hidden=True)
+    @commands.has_permissions(administrator=True)
+    async def diagnose(self, ctx: commands.Context):
+        """Show diagnostic information (Admin only)."""
+        # Slash commands count
+        slash_commands = len(self.bot.tree.get_commands())
+        # Prefix commands count
+        prefix_commands = len(self.bot.commands)
+        # Guilds
+        guilds = len(self.bot.guilds)
+        # Users
+        users = sum(g.member_count for g in self.bot.guilds)
+        # Latency
+        latency = round(self.bot.latency * 1000)
+        
+        embed = discord.Embed(title="🛠️ Diagnostic Info", color=discord.Color.orange())
+        embed.add_field(name="Slash Commands", value=str(slash_commands), inline=True)
+        embed.add_field(name="Prefix Commands", value=str(prefix_commands), inline=True)
+        embed.add_field(name="Guilds", value=str(guilds), inline=True)
+        embed.add_field(name="Users", value=str(users), inline=True)
+        embed.add_field(name="Latency", value=f"{latency}ms", inline=True)
+        
+        if hasattr(self.bot, 'start_time'):
+             embed.add_field(name="Start Time", value=discord.utils.format_dt(self.bot.start_time, 'R'), inline=True)
+
+        await ctx.send(embed=embed)
+
 
 async def setup(bot):
     """Setup the misc cog."""
