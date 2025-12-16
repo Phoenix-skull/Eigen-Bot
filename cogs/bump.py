@@ -93,7 +93,7 @@ class BumpSystem(commands.Cog):
             channel_id, message_text, role_id = config
             channel = self.bot.get_channel(channel_id)
             
-            if channel:
+            if channel and isinstance(channel, discord.TextChannel):
                 # Prepare message
                 content = message_text or "It's time to bump the server! Use `/bump`"
                 if role_id:
@@ -207,7 +207,7 @@ class BumpSystem(commands.Cog):
             if row:
                 channel_id = row[0]
                 channel = self.bot.get_channel(channel_id)
-                if channel:
+                if channel and isinstance(channel, discord.TextChannel):
                     embed = discord.Embed(title="✅ Timer Reset", description=f"Next bump in 2 hours (<t:{int(next_bump)}:R>).", color=discord.Color.green())
                     if user and reaction_time > 0:
                         seconds = reaction_time / 1000
@@ -219,6 +219,8 @@ class BumpSystem(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def bump_config(self, ctx: commands.Context, channel: discord.TextChannel, message: str, role: Optional[discord.Role] = None):
         """Set the bump reminder channel and message."""
+        if not ctx.guild:
+            return
         role_id = role.id if role else None
         
         async with aiosqlite.connect(self.db_path) as db:
@@ -246,6 +248,8 @@ class BumpSystem(commands.Cog):
     @commands.guild_only()
     async def bump_leaderboard(self, ctx: commands.Context):
         """Show top bumpers in the server."""
+        if not ctx.guild:
+            return
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute("""
                 SELECT user_id, bump_count, total_reaction_time 
@@ -283,6 +287,8 @@ class BumpSystem(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def bump_test(self, ctx: commands.Context):
         """Trigger a fake reminder for testing."""
+        if not ctx.guild:
+            return
         await self.send_reminder(ctx.guild.id)
         await ctx.send("Test reminder sent (if configured).")
 

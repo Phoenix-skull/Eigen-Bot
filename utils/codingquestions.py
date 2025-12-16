@@ -397,124 +397,124 @@ HARD_QUESTIONS = [
 
     # --- HARD / CHALLENGING (MIXED) ---
     {
-        "question": "**[Hard]** What is the output of this Python code?\n```python\ndef f(x, l=[]):\n    l.append(x)\n    return l\nprint(f(1))\nprint(f(2))\n```",
+        "question": "What is the output of this Python code?\n```python\ndef f(x, l=[]):\n    l.append(x)\n    return l\nprint(f(1))\nprint(f(2))\n```",
         "options": ["a) [1] then [2]", "b) [1] then [1, 2]", "c) [1] then [1]"],
         "correct": "b",
         "explanation": "Default mutable arguments are evaluated only once at function definition."
     },
     {
-        "question": "**[Hard]** In C++, what is the 'Diamond Problem' related to?",
+        "question": "In C++, what is the 'Diamond Problem' related to?",
         "options": ["a) Pointer arithmetic", "b) Multiple inheritance", "c) Memory leaks"],
         "correct": "b"
     },
     {
-        "question": "**[Hard]** What is the time complexity of QuickSort in the worst case?",
+        "question": "What is the time complexity of QuickSort in the worst case?",
         "options": ["a) O(n log n)", "b) O(n)", "c) O(n^2)"],
         "correct": "c",
         "explanation": "Worst case occurs when the pivot is the smallest or largest element."
     },
     {
-        "question": "**[Hard]** What is the output of `[] + []` in JavaScript?",
+        "question": "What is the output of `[] + []` in JavaScript?",
         "options": ["a) []", "b) '' (Empty String)", "c) 0"],
         "correct": "b",
         "explanation": "Arrays are converted to strings and concatenated."
     },
     {
-        "question": "**[Hard]** What does the Python `GIL` prevent?",
+        "question": "What does the Python `GIL` prevent?",
         "options": ["a) Memory leaks", "b) Multiple threads executing Python bytecodes at once", "c) Deadlocks"],
         "correct": "b"
     },
     {
-        "question": "**[Hard]** Which design pattern ensures a class has only one instance?",
+        "question": "Which design pattern ensures a class has only one instance?",
         "options": ["a) Factory", "b) Singleton", "c) Observer"],
         "correct": "b"
     },
     {
-        "question": "**[Hard]** What is the result of `0.1 + 0.2 === 0.3` in JavaScript?",
+        "question": "What is the result of `0.1 + 0.2 === 0.3` in JavaScript?",
         "options": ["a) true", "b) false", "c) Error"],
         "correct": "b",
         "explanation": "Floating point precision issues make it 0.30000000000000004."
     },
     {
-        "question": "**[Hard]** In Python, what is a 'metaclass'?",
+        "question": "In Python, what is a 'metaclass'?",
         "options": ["a) A class that inherits from itself", "b) A class of a class", "c) A class with static methods"],
         "correct": "b"
     },
     {
-        "question": "**[Hard]** What is 'Currying' in functional programming?",
+        "question": "What is 'Currying' in functional programming?",
         "options": ["a) Mixing multiple functions", "b) Transforming a function with multiple arguments into a sequence of functions", "c) Recursive function calls"],
         "correct": "b"
     },
     {
-        "question": "**[Hard]** What is the output?\n```python\nx = 10\ndef foo():\n    print(x)\n    x = 20\nfoo()\n```",
+        "question": "What is the output?\n```python\nx = 10\ndef foo():\n    print(x)\n    x = 20\nfoo()\n```",
         "options": ["a) 10", "b) 20", "c) UnboundLocalError"],
         "correct": "c",
         "explanation": "Python treats `x` as local because of the assignment, but it's accessed before assignment."
     },
     {
-        "question": "**[Hard]** What is the difference between `process` and `thread`?",
+        "question": "What is the difference between `process` and `thread`?",
         "options": ["a) Threads share memory, processes do not", "b) Processes share memory, threads do not", "c) No difference"],
         "correct": "a"
     },
     {
-        "question": "**[Hard]** What is a 'Closure' in JavaScript?",
+        "question": "What is a 'Closure' in JavaScript?",
         "options": ["a) A function with no arguments", "b) A function bundled with its lexical environment", "c) A method to close a window"],
         "correct": "b"
     },
     {
-        "question": "**[Hard]** What is the output of `print(type(type(int)))` in Python?",
+        "question": "What is the output of `print(type(type(int)))` in Python?",
         "options": ["a) <class 'type'>", "b) <class 'int'>", "c) <class 'object'>"],
         "correct": "a"
     },
     {
-        "question": "**[Hard]** Which of these is NOT a SOLID principle?",
+        "question": "Which of these is NOT a SOLID principle?",
         "options": ["a) Single Responsibility", "b) Open/Closed", "c) Loop Invariant"],
         "correct": "c"
     },
     {
-        "question": "**[Hard]** What is the space complexity of a recursive Fibonacci function without memoization?",
+        "question": "What is the space complexity of a recursive Fibonacci function without memoization?",
         "options": ["a) O(1)", "b) O(n)", "c) O(2^n)"],
         "correct": "b",
         "explanation": "The stack depth is n."
     },
     {
-        "question": "**[Hard]** What is 'Deadlock'?",
+        "question": "What is 'Deadlock'?",
         "options": ["a) When a process terminates unexpectedly", "b) When two processes wait for each other indefinitely", "c) A memory error"],
         "correct": "b"
     },
     {
-        "question": "**[Hard]** What is the output of `print(all([]))` in Python?",
+        "question": "What is the output of `print(all([]))` in Python?",
         "options": ["a) True", "b) False", "c) Error"],
         "correct": "a",
         "explanation": "Vacuous truth: all elements in the empty set are true."
     },
     {
-        "question": "**[Hard]** What is 'Polymorphism'?",
+        "question": "What is 'Polymorphism'?",
         "options": ["a) Hiding data", "b) Ability of different classes to be treated as instances of the same class", "c) Creating multiple copies of an object"],
         "correct": "b"
     },
     {
-        "question": "**[Hard]** What is the output of `print(any([]))` in Python?",
+        "question": "What is the output of `print(any([]))` in Python?",
         "options": ["a) True", "b) False", "c) Error"],
         "correct": "b"
     },
     {
-        "question": "**[Hard]** In SQL, what is a 'Foreign Key'?",
+        "question": "In SQL, what is a 'Foreign Key'?",
         "options": ["a) A key used for encryption", "b) A field that links to the primary key of another table", "c) A unique identifier"],
         "correct": "b"
     },
     {
-        "question": "**[Hard]** What is the purpose of `__slots__` in Python?",
+        "question": "What is the purpose of `__slots__` in Python?",
         "options": ["a) To reserve memory", "b) To restrict attribute creation and save memory", "c) To define private methods"],
         "correct": "b"
     },
     {
-        "question": "**[Hard]** What is the output of `console.log(1 < 2 < 3)` in JS?",
+        "question": "What is the output of `console.log(1 < 2 < 3)` in JS?",
         "options": ["a) true", "b) false", "c) Error"],
         "correct": "a"
     },
     {
-        "question": "**[Hard]** What is the output of `console.log(3 > 2 > 1)` in JS?",
+        "question": "What is the output of `console.log(3 > 2 > 1)` in JS?",
         "options": ["a) true", "b) false", "c) Error"],
         "correct": "b",
         "explanation": "3 > 2 is true (1). 1 > 1 is false."

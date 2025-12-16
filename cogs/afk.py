@@ -9,7 +9,7 @@ from discord import app_commands
 import aiosqlite
 import asyncio
 from datetime import datetime, timezone
-from typing import Optional, Dict
+from typing import Optional, Dict, cast, Union
 from pathlib import Path
 
 
@@ -373,7 +373,11 @@ class AFKSystem(commands.Cog):
         """Toggle ignoring AFK mentions in this channel"""
         await self.ready.wait()
         
-        channel_id = ctx.channel.id
+        if not ctx.guild:
+            return
+
+        channel = cast(discord.TextChannel, ctx.channel)
+        channel_id = channel.id
         guild_id = ctx.guild.id
         
         if channel_id in self.ignored_channels_cache:
@@ -382,14 +386,14 @@ class AFKSystem(commands.Cog):
                 await db.execute("DELETE FROM ignored_channels WHERE channel_id = ?", (channel_id,))
                 await db.commit()
             self.ignored_channels_cache.remove(channel_id)
-            await ctx.send(f"✅ AFK mentions are now **enabled** in {ctx.channel.mention}")
+            await ctx.send(f"✅ AFK mentions are now **enabled** in {channel.mention}")
         else:
             # Add to ignore list
             async with aiosqlite.connect(self.database_path) as db:
                 await db.execute("INSERT INTO ignored_channels (channel_id, guild_id) VALUES (?, ?)", (channel_id, guild_id))
                 await db.commit()
             self.ignored_channels_cache.add(channel_id)
-            await ctx.send(f"🚫 AFK mentions are now **disabled** in {ctx.channel.mention}")
+            await ctx.send(f"🚫 AFK mentions are now **disabled** in {channel.mention}")
 
     @commands.hybrid_command(name="afkignored", help="List channels where AFK mentions are ignored")
     @commands.guild_only()
@@ -397,6 +401,9 @@ class AFKSystem(commands.Cog):
         """List channels where AFK mentions are ignored"""
         await self.ready.wait()
         
+        if not ctx.guild:
+            return
+
         ignored_channels = []
         for channel_id in self.ignored_channels_cache:
             channel = ctx.guild.get_channel(channel_id)
