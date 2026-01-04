@@ -348,21 +348,19 @@ class Misc(commands.Cog):
     @commands.hybrid_command(name='support', description='Get the support server invite link')
     async def support(self, ctx: commands.Context):
         """Send the support server invite link."""
-        embed = discord.Embed(
-            title="Support Server",
-            description=(
-                "[discord.gg/4TkQYz7qea](https://discord.gg/4TkQYz7qea)\n\n"
-                "Get help with bug reports, feature requests, questions, and updates."
-            ),
-            color=0x000000
-        )
-        
-        embed.set_footer(text="Support")
+        content = "Join our support server: https://discord.gg/4TkQYz7qea"
         
         if ctx.interaction:
-            await ctx.interaction.response.send_message(embed=embed, ephemeral=True)
+            await ctx.interaction.response.send_message(content, ephemeral=True)
         else:
-            await ctx.send(embed=embed)
+            try:
+                await ctx.author.send(content)
+                try:
+                    await ctx.message.add_reaction("✅")
+                except:
+                    pass
+            except:
+                await ctx.send(content, delete_after=10)
     
     @app_commands.command(name='newfeature', description='Suggest a new feature for the bot')
     @app_commands.describe(feature='Describe the feature you would like to see')
