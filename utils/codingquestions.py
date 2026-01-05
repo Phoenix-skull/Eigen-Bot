@@ -1,328 +1,328 @@
 import random
 
 HARD_QUESTIONS = [
-    # --- PYTHON (EASY/MODERATE) ---
+    # --- PYTHON ---
     {
-        "question": "What is the output of `print(2 ** 3 ** 2)` in Python?",
-        "options": ["a) 64", "b) 512", "c) 12"],
-        "correct": "b",
-        "explanation": "Exponentiation is right-associative. 3**2 = 9, then 2**9 = 512."
+        "question": "What is the output of this code?\n```python\nprint(type(lambda: None))\n```",
+        "options": ["a) <class 'function'>", "b) <class 'lambda'>", "c) <class 'NoneType'>"],
+        "correct": "a",
+        "explanation": "Lambdas are functions in Python."
     },
     {
-        "question": "Which of these is NOT a valid variable name in Python?",
-        "options": ["a) _my_var", "b) 2my_var", "c) my_var2"],
-        "correct": "b",
-        "explanation": "Variable names cannot start with a number."
+        "question": "Which of these is NOT a valid way to create a set?",
+        "options": ["a) {1, 2}", "b) set([1, 2])", "c) {}"],
+        "correct": "c",
+        "explanation": "`{}` creates an empty dictionary, not a set. Use `set()` for an empty set."
     },
     {
-        "question": "What does the `len()` function do?",
-        "options": ["a) Returns the length of an object", "b) Returns the type of an object", "c) Converts to a list"],
-        "correct": "a"
-    },
-    {
-        "question": "What is the output of `print('hello' * 2)`?",
-        "options": ["a) hello2", "b) hellohello", "c) Error"],
-        "correct": "b"
-    },
-    {
-        "question": "Which keyword is used to define a function in Python?",
-        "options": ["a) func", "b) define", "c) def"],
-        "correct": "c"
-    },
-    {
-        "question": "What data type is `{'a': 1, 'b': 2}`?",
-        "options": ["a) List", "b) Set", "c) Dictionary"],
-        "correct": "c"
-    },
-    {
-        "question": "How do you start a single-line comment in Python?",
-        "options": ["a) //", "b) #", "c) /*"],
-        "correct": "b"
-    },
-    {
-        "question": "What is the result of `10 // 3` in Python?",
-        "options": ["a) 3.33", "b) 3", "c) 4"],
-        "correct": "b",
-        "explanation": "`//` is the floor division operator."
-    },
-    {
-        "question": "Which method adds an item to the end of a list?",
-        "options": ["a) push()", "b) add()", "c) append()"],
-        "correct": "c"
-    },
-    {
-        "question": "What is the output of `bool([])`?",
-        "options": ["a) True", "b) False", "c) Error"],
-        "correct": "b",
-        "explanation": "Empty lists are considered False in boolean context."
-    },
-    {
-        "question": "What does `range(5)` generate?",
-        "options": ["a) 1, 2, 3, 4, 5", "b) 0, 1, 2, 3, 4", "c) 0, 1, 2, 3, 4, 5"],
-        "correct": "b"
-    },
-    {
-        "question": "Which operator is used for string concatenation?",
-        "options": ["a) .", "b) +", "c) &"],
-        "correct": "b"
-    },
-    {
-        "question": "What is the output?\n```python\nx = [1, 2, 3]\ny = x\ny.append(4)\nprint(x)\n```",
+        "question": "What is the output?\n```python\na = [1, 2, 3]\nb = a\na += [4]\nprint(b)\n```",
         "options": ["a) [1, 2, 3]", "b) [1, 2, 3, 4]", "c) Error"],
         "correct": "b",
-        "explanation": "Lists are mutable and `y = x` creates a reference, not a copy."
+        "explanation": "`+=` on lists modifies the list in-place, so `b` (which references the same object) sees the change."
     },
     {
-        "question": "How do you check if a key 'k' exists in dictionary `d`?",
-        "options": ["a) d.has('k')", "b) 'k' in d", "c) d.contains('k')"],
+        "question": "What does the `__init__` method do?",
+        "options": ["a) Initializes a class", "b) Initializes an object (instance)", "c) Creates a new module"],
         "correct": "b"
     },
     {
-        "question": "What is the correct way to import a module named `math`?",
-        "options": ["a) include math", "b) import math", "c) using math"],
-        "correct": "b"
-    },
-    {
-        "question": "What does `str(123)` return?",
-        "options": ["a) 123", "b) '123'", "c) [1, 2, 3]"],
-        "correct": "b"
-    },
-    {
-        "question": "Which of these is a mutable data type?",
-        "options": ["a) Tuple", "b) String", "c) List"],
-        "correct": "c"
-    },
-    {
-        "question": "What is the output of `print(type(1/2))`?",
-        "options": ["a) <class 'int'>", "b) <class 'float'>", "c) <class 'number'>"],
+        "question": "What is the result of `print(0.1 + 0.2 == 0.3)`?",
+        "options": ["a) True", "b) False", "c) Error"],
         "correct": "b",
-        "explanation": "Division `/` always returns a float in Python 3."
+        "explanation": "Floating point precision issues make 0.1 + 0.2 slightly larger than 0.3."
     },
     {
-        "question": "How do you create an empty set?",
-        "options": ["a) {}", "b) set()", "c) []"],
-        "correct": "b",
-        "explanation": "`{}` creates an empty dictionary."
-    },
-    {
-        "question": "What is the output of `print('Python'[1])`?",
-        "options": ["a) P", "b) y", "c) h"],
-        "correct": "b",
-        "explanation": "String indexing starts at 0."
-    },
-    {
-        "question": "Which function reads input from the user?",
-        "options": ["a) scan()", "b) read()", "c) input()"],
-        "correct": "c"
-    },
-    {
-        "question": "What is the output of `print(3 * '7')`?",
-        "options": ["a) 21", "b) 777", "c) Error"],
+        "question": "Which decorator is used to define a class method?",
+        "options": ["a) @static", "b) @classmethod", "c) @method"],
         "correct": "b"
     },
     {
-        "question": "Which statement is used to stop a loop?",
-        "options": ["a) stop", "b) exit", "c) break"],
-        "correct": "c"
-    },
-    {
-        "question": "What is the output?\n```python\ndef func(a, b=2):\n    return a * b\nprint(func(3))\n```",
-        "options": ["a) 3", "b) 6", "c) Error"],
-        "correct": "b"
-    },
-    {
-        "question": "How do you raise an exception?",
-        "options": ["a) throw", "b) raise", "c) error"],
-        "correct": "b"
-    },
-    {
-        "question": "What is `__name__` when a script is run directly?",
-        "options": ["a) '__main__'", "b) The filename", "c) None"],
-        "correct": "a"
-    },
-    {
-        "question": "Which method removes whitespace from the beginning and end of a string?",
-        "options": ["a) trim()", "b) strip()", "c) clean()"],
-        "correct": "b"
-    },
-    {
-        "question": "What is the output of `print(list(range(2, 5)))`?",
-        "options": ["a) [2, 3, 4, 5]", "b) [2, 3, 4]", "c) [3, 4, 5]"],
-        "correct": "b"
-    },
-    {
-        "question": "What keyword is used for class inheritance?",
-        "options": ["a) extends", "b) inherits", "c) (ParentClass)"],
-        "correct": "c"
-    },
-    {
-        "question": "What is the output of `print(10 % 3)`?",
-        "options": ["a) 3", "b) 1", "c) 3.33"],
-        "correct": "b",
-        "explanation": "`%` is the modulus operator (remainder)."
-    },
-
-    # --- JAVASCRIPT (EASY/MODERATE) ---
-    {
-        "question": "Which keyword is used to declare a constant in JavaScript?",
-        "options": ["a) var", "b) let", "c) const"],
-        "correct": "c"
-    },
-    {
-        "question": "What is the output of `console.log(typeof [])`?",
-        "options": ["a) array", "b) object", "c) list"],
-        "correct": "b",
-        "explanation": "Arrays are objects in JavaScript."
-    },
-    {
-        "question": "How do you write 'Hello World' in an alert box?",
-        "options": ["a) msg('Hello World')", "b) alert('Hello World')", "c) alertBox('Hello World')"],
-        "correct": "b"
-    },
-    {
-        "question": "What is `NaN`?",
-        "options": ["a) Not a Number", "b) Null and None", "c) New array Number"],
-        "correct": "a"
-    },
-    {
-        "question": "Which operator checks for both value and type equality?",
-        "options": ["a) ==", "b) ===", "c) ="],
-        "correct": "b"
-    },
-    {
-        "question": "What is the output of `'5' + 3` in JavaScript?",
-        "options": ["a) 8", "b) '53'", "c) Error"],
-        "correct": "b",
-        "explanation": "JavaScript performs string concatenation."
-    },
-    {
-        "question": "Which method converts a JSON string to a JavaScript object?",
-        "options": ["a) JSON.parse()", "b) JSON.stringify()", "c) JSON.toObject()"],
-        "correct": "a"
-    },
-    {
-        "question": "What is the correct way to write a function in JavaScript?",
-        "options": ["a) function:myFunc()", "b) function myFunc()", "c) def myFunc()"],
-        "correct": "b"
-    },
-    {
-        "question": "How do you call a function named `myFunction`?",
-        "options": ["a) call myFunction()", "b) myFunction()", "c) run myFunction()"],
-        "correct": "b"
-    },
-    {
-        "question": "Which event occurs when the user clicks on an HTML element?",
-        "options": ["a) onchange", "b) onmouseclick", "c) onclick"],
-        "correct": "c"
-    },
-    {
-        "question": "What is the output of `Boolean(10 > 9)`?",
-        "options": ["a) true", "b) false", "c) NaN"],
-        "correct": "a"
-    },
-    {
-        "question": "Which symbol is used for comments in JavaScript?",
-        "options": ["a) #", "b) //", "c) <!--"],
-        "correct": "b"
-    },
-    {
-        "question": "What is the correct syntax for a `for` loop?",
-        "options": ["a) for (i = 0; i <= 5)", "b) for (i = 0; i <= 5; i++)", "c) for i = 1 to 5"],
-        "correct": "b"
-    },
-    {
-        "question": "How do you find the number with the highest value of x and y?",
-        "options": ["a) Math.max(x, y)", "b) Math.ceil(x, y)", "c) top(x, y)"],
-        "correct": "a"
-    },
-    {
-        "question": "Which operator is used to assign a value to a variable?",
-        "options": ["a) *", "b) =", "c) -"],
-        "correct": "b"
-    },
-    {
-        "question": "What is the output of `console.log(2 + '2')`?",
-        "options": ["a) 4", "b) '22'", "c) NaN"],
-        "correct": "b"
-    },
-    {
-        "question": "Which keyword refers to the object belonging to the current code?",
-        "options": ["a) self", "b) object", "c) this"],
-        "correct": "c"
-    },
-    {
-        "question": "How do you declare a variable that cannot be reassigned?",
-        "options": ["a) var", "b) let", "c) const"],
-        "correct": "c"
-    },
-    {
-        "question": "What is the output of `console.log(!!'false')`?",
-        "options": ["a) true", "b) false", "c) Error"],
+        "question": "What is the output of `print('a' < 'b')`?",
+        "options": ["a) True", "b) False", "c) Error"],
         "correct": "a",
-        "explanation": "Non-empty strings are truthy."
+        "explanation": "Strings are compared lexicographically (ASCII value)."
     },
     {
-        "question": "Which array method removes the last element?",
-        "options": ["a) shift()", "b) pop()", "c) push()"],
+        "question": "What keyword is used to handle exceptions?",
+        "options": ["a) catch", "b) except", "c) handle"],
         "correct": "b"
     },
-
-    # --- GENERAL PROGRAMMING & DSA (EASY/MODERATE) ---
+    {
+        "question": "What is a generator in Python?",
+        "options": ["a) A function that returns a list", "b) A function that yields values one by one", "c) A tool to generate code"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the output?\n```python\nx = (1)\nprint(type(x))\n```",
+        "options": ["a) <class 'tuple'>", "b) <class 'int'>", "c) <class 'list'>"],
+        "correct": "b",
+        "explanation": "A single element tuple requires a comma: `(1,)`."
+    },
+    # --- JAVASCRIPT ---
+    {
+        "question": "What is the output of `console.log(typeof NaN)`?",
+        "options": ["a) 'number'", "b) 'NaN'", "c) 'undefined'"],
+        "correct": "a",
+        "explanation": "NaN stands for Not-a-Number, but its type is technically 'number'."
+    },
+    {
+        "question": "What is the result of `[] + []`?",
+        "options": ["a) []", "b) '' (Empty String)", "c) 0"],
+        "correct": "b",
+        "explanation": "Arrays are converted to strings and concatenated."
+    },
+    {
+        "question": "Which keyword declares a block-scoped variable?",
+        "options": ["a) var", "b) let", "c) def"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the output of `console.log(0.1 + 0.2 === 0.3)`?",
+        "options": ["a) true", "b) false", "c) undefined"],
+        "correct": "b",
+        "explanation": "Floating point arithmetic."
+    },
+    {
+        "question": "How do you create a Promise?",
+        "options": ["a) new Promise((resolve, reject) => ...)", "b) Promise.create()", "c) async function()"],
+        "correct": "a"
+    },
+    {
+        "question": "What does `===` check?",
+        "options": ["a) Value only", "b) Value and Type", "c) Reference"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the output?\n```javascript\nconsole.log('5' - 3)\n```",
+        "options": ["a) 2", "b) '53'", "c) NaN"],
+        "correct": "a",
+        "explanation": "The `-` operator converts the string to a number."
+    },
+    {
+        "question": "What is a closure?",
+        "options": ["a) A function bundled with its lexical environment", "b) The end of a function", "c) A closed class"],
+        "correct": "a"
+    },
+    {
+        "question": "Which method removes the last element from an array?",
+        "options": ["a) shift()", "b) pop()", "c) remove()"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the output?\n```javascript\nconsole.log(1 + '1')\n```",
+        "options": ["a) 2", "b) '11'", "c) NaN"],
+        "correct": "b",
+        "explanation": "The `+` operator with a string performs concatenation."
+    },
+    # --- JAVA ---
+    {
+        "question": "What is the size of an `int` in Java?",
+        "options": ["a) 16 bit", "b) 32 bit", "c) 64 bit"],
+        "correct": "b"
+    },
+    {
+        "question": "Which keyword is used to inherit a class?",
+        "options": ["a) implements", "b) extends", "c) inherits"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the default value of a boolean variable?",
+        "options": ["a) true", "b) false", "c) null"],
+        "correct": "b"
+    },
+    {
+        "question": "Which collection allows duplicate elements?",
+        "options": ["a) Set", "b) List", "c) Map (Keys)"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the entry point of a Java program?",
+        "options": ["a) public static void main(String[] args)", "b) void main()", "c) public void start()"],
+        "correct": "a"
+    },
+    {
+        "question": "Is Java pass-by-reference or pass-by-value?",
+        "options": ["a) Pass-by-reference", "b) Pass-by-value", "c) Both"],
+        "correct": "b",
+        "explanation": "Java is strictly pass-by-value. Object references are passed by value."
+    },
+    {
+        "question": "Which keyword makes a variable constant?",
+        "options": ["a) const", "b) final", "c) static"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the parent class of all classes in Java?",
+        "options": ["a) Class", "b) Object", "c) Main"],
+        "correct": "b"
+    },
+    {
+        "question": "How do you compare two strings for equality?",
+        "options": ["a) ==", "b) .equals()", "c) .compare()"],
+        "correct": "b",
+        "explanation": "`==` compares references, `.equals()` compares content."
+    },
+    {
+        "question": "What is an interface?",
+        "options": ["a) A class with only abstract methods (mostly)", "b) A concrete class", "c) A variable type"],
+        "correct": "a"
+    },
+    # --- C++ ---
+    {
+        "question": "What is the output?\n```cpp\nint x = 5;\ncout << x++ << ++x;\n```",
+        "options": ["a) 57", "b) 66", "c) Undefined Behavior"],
+        "correct": "c",
+        "explanation": "The order of evaluation of operands in `<<` is unspecified/undefined in older standards (before C++17)."
+    },
+    {
+        "question": "Which operator is used to access members of a pointer?",
+        "options": ["a) .", "b) ->", "c) ::"],
+        "correct": "b"
+    },
+    {
+        "question": "What is a destructor?",
+        "options": ["a) A method to delete a class", "b) A method called when an object is destroyed", "c) A method to free memory manually"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the difference between `struct` and `class`?",
+        "options": ["a) No difference", "b) Default access specifier", "c) Structs cannot have methods"],
+        "correct": "b",
+        "explanation": "Struct members are public by default; class members are private."
+    },
+    {
+        "question": "What does `virtual` keyword do?",
+        "options": ["a) Enables polymorphism", "b) Makes a function faster", "c) Creates a virtual machine"],
+        "correct": "a"
+    },
+    {
+        "question": "How do you allocate memory dynamically?",
+        "options": ["a) malloc", "b) new", "c) Both"],
+        "correct": "c"
+    },
+    {
+        "question": "What is a reference?",
+        "options": ["a) A pointer", "b) An alias for an existing variable", "c) A copy of a variable"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the STL?",
+        "options": ["a) Standard Template Library", "b) Standard Type List", "c) Simple Text Language"],
+        "correct": "a"
+    },
+    {
+        "question": "What is `std::vector`?",
+        "options": ["a) A static array", "b) A dynamic array", "c) A linked list"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the size of an empty class?",
+        "options": ["a) 0 bytes", "b) 1 byte", "c) 4 bytes"],
+        "correct": "b",
+        "explanation": "To ensure that two different objects have different addresses."
+    },
+    # --- C# ---
+    {
+        "question": "Which keyword is used for inheritance?",
+        "options": ["a) extends", "b) :", "c) implements"],
+        "correct": "b"
+    },
+    {
+        "question": "What is LINQ?",
+        "options": ["a) Language Integrated Query", "b) Linked Integer Queue", "c) List Index Query"],
+        "correct": "a"
+    },
+    {
+        "question": "What is the base class for all types in C#?",
+        "options": ["a) System.Object", "b) System.Base", "c) System.Root"],
+        "correct": "a"
+    },
+    {
+        "question": "Which keyword is used to define an asynchronous method?",
+        "options": ["a) await", "b) async", "c) thread"],
+        "correct": "b"
+    },
+    {
+        "question": "What is a nullable type?",
+        "options": ["a) int?", "b) int!", "c) null<int>"],
+        "correct": "a"
+    },
+    {
+        "question": "What is the difference between `ref` and `out`?",
+        "options": ["a) `out` requires initialization before passing", "b) `ref` requires initialization before passing", "c) No difference"],
+        "correct": "b"
+    },
+    {
+        "question": "What is a property?",
+        "options": ["a) A variable", "b) A member that provides a flexible mechanism to read, write, or compute the value of a private field", "c) A method"],
+        "correct": "b"
+    },
+    {
+        "question": "What does `using` statement do?",
+        "options": ["a) Imports a namespace", "b) Ensures IDisposable objects are disposed", "c) Both"],
+        "correct": "c"
+    },
+    # --- RUST ---
+    {
+        "question": "What is the ownership model?",
+        "options": ["a) A way to manage memory without a garbage collector", "b) A way to buy code", "c) A licensing model"],
+        "correct": "a"
+    },
+    {
+        "question": "Which keyword defines a mutable variable?",
+        "options": ["a) var", "b) let mut", "c) mut"],
+        "correct": "b"
+    },
+    {
+        "question": "What is `Option<T>`?",
+        "options": ["a) A type that represents an optional value (Some or None)", "b) A configuration option", "c) A compiler flag"],
+        "correct": "a"
+    },
+    {
+        "question": "What is the output of `println!(\"{}\", 5)`?",
+        "options": ["a) 5", "b) {5}", "c) Error"],
+        "correct": "a"
+    },
+    {
+        "question": "What is a `Result` type used for?",
+        "options": ["a) Returning values", "b) Error handling", "c) Math calculations"],
+        "correct": "b"
+    },
+    {
+        "question": "What does `unwrap()` do?",
+        "options": ["a) Extracts the value from Option/Result or panics", "b) Opens a file", "c) Decrypts data"],
+        "correct": "a"
+    },
+    {
+        "question": "What is a trait?",
+        "options": ["a) A class", "b) A collection of methods that can be implemented by types", "c) A variable type"],
+        "correct": "b"
+    },
+    {
+        "question": "How do you create a new vector?",
+        "options": ["a) Vector.new()", "b) vec![]", "c) list[]"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the borrow checker?",
+        "options": ["a) A library", "b) A compiler part that enforces ownership rules", "c) A linter"],
+        "correct": "b"
+    },
+    {
+        "question": "What is `match`?",
+        "options": ["a) A regex tool", "b) A control flow operator for pattern matching", "c) A game"],
+        "correct": "b"
+    },
+    # --- WEB DEV (HTML/CSS) ---
     {
         "question": "What does HTML stand for?",
         "options": ["a) Hyper Text Markup Language", "b) High Tech Modern Language", "c) Hyperlinks and Text Markup Language"],
         "correct": "a"
     },
     {
-        "question": "Which data structure uses LIFO (Last In First Out)?",
-        "options": ["a) Queue", "b) Stack", "c) Array"],
-        "correct": "b"
-    },
-    {
-        "question": "What is the time complexity of accessing an array element by index?",
-        "options": ["a) O(n)", "b) O(1)", "c) O(log n)"],
-        "correct": "b"
-    },
-    {
-        "question": "What does SQL stand for?",
-        "options": ["a) Structured Question Language", "b) Structured Query Language", "c) Simple Query Language"],
-        "correct": "b"
-    },
-    {
-        "question": "Which protocol is used for secure web browsing?",
-        "options": ["a) HTTP", "b) FTP", "c) HTTPS"],
+        "question": "Which tag is used for the largest heading?",
+        "options": ["a) <head>", "b) <h6>", "c) <h1>"],
         "correct": "c"
-    },
-    {
-        "question": "What is a 'bug'?",
-        "options": ["a) A feature", "b) An error in code", "c) A type of virus"],
-        "correct": "b"
-    },
-    {
-        "question": "What does API stand for?",
-        "options": ["a) Application Programming Interface", "b) Advanced Programming Interface", "c) Automated Program Interaction"],
-        "correct": "a"
-    },
-    {
-        "question": "Which is a binary number?",
-        "options": ["a) 10101", "b) 202", "c) 12A"],
-        "correct": "a"
-    },
-    {
-        "question": "What is the base of the hexadecimal system?",
-        "options": ["a) 10", "b) 8", "c) 16"],
-        "correct": "c"
-    },
-    {
-        "question": "Which sorting algorithm has the best average case time complexity?",
-        "options": ["a) Bubble Sort", "b) Merge Sort", "c) Selection Sort"],
-        "correct": "b",
-        "explanation": "Merge Sort is O(n log n), others are O(n^2)."
-    },
-    {
-        "question": "What is a 'loop'?",
-        "options": ["a) A mistake in code", "b) A sequence of instructions repeated", "c) A connection between computers"],
-        "correct": "b"
     },
     {
         "question": "What does CSS stand for?",
@@ -330,206 +330,156 @@ HARD_QUESTIONS = [
         "correct": "b"
     },
     {
-        "question": "Which data structure is best for a FIFO (First In First Out) system?",
-        "options": ["a) Stack", "b) Queue", "c) Tree"],
+        "question": "Which property changes text color?",
+        "options": ["a) text-color", "b) color", "c) font-color"],
         "correct": "b"
     },
     {
-        "question": "What is 'recursion'?",
-        "options": ["a) A function calling itself", "b) A loop that never ends", "c) A database query"],
+        "question": "What is the Box Model?",
+        "options": ["a) A layout concept (Content, Padding, Border, Margin)", "b) A 3D model", "c) A flexbox container"],
         "correct": "a"
     },
     {
-        "question": "What is 1 byte equal to?",
-        "options": ["a) 4 bits", "b) 8 bits", "c) 16 bits"],
+        "question": "Which unit is relative to the font-size of the root element?",
+        "options": ["a) em", "b) rem", "c) px"],
         "correct": "b"
     },
     {
-        "question": "Which is NOT an Operating System?",
-        "options": ["a) Linux", "b) Windows", "c) Oracle"],
-        "correct": "c"
-    },
-    {
-        "question": "What is the purpose of a compiler?",
-        "options": ["a) To execute code line by line", "b) To translate source code to machine code", "c) To debug code"],
-        "correct": "b"
-    },
-    {
-        "question": "What is 'Open Source'?",
-        "options": ["a) Software with free source code", "b) Software that costs money", "c) Software without copyright"],
+        "question": "What is Flexbox?",
+        "options": ["a) A layout module for one-dimensional layouts", "b) A grid system", "c) A JavaScript library"],
         "correct": "a"
     },
     {
-        "question": "What does GUI stand for?",
-        "options": ["a) Graphical User Interface", "b) General User Interaction", "c) Global User Interface"],
+        "question": "Which tag is used to link a JavaScript file?",
+        "options": ["a) <link>", "b) <script>", "c) <js>"],
+        "correct": "b"
+    },
+    {
+        "question": "What does `z-index` control?",
+        "options": ["a) Zoom level", "b) Stack order of elements", "c) Opacity"],
+        "correct": "b"
+    },
+    {
+        "question": "What is the difference between `id` and `class`?",
+        "options": ["a) `id` is unique, `class` can be reused", "b) `class` is unique", "c) No difference"],
+        "correct": "a"
+    },
+    # --- GAME DEV ---
+    {
+        "question": "What is a Game Loop?",
+        "options": ["a) A loop that runs the game logic and rendering repeatedly", "b) A level that repeats", "c) A bug"],
         "correct": "a"
     },
     {
-        "question": "Which is a NoSQL database?",
-        "options": ["a) MySQL", "b) PostgreSQL", "c) MongoDB"],
-        "correct": "c"
+        "question": "What is a Sprite?",
+        "options": ["a) A 3D model", "b) A 2D image or animation", "c) A sound effect"],
+        "correct": "b"
     },
     {
-        "question": "What is the main function of an IP address?",
-        "options": ["a) To identify a device on a network", "b) To store website data", "c) To encrypt data"],
+        "question": "What is a Collider?",
+        "options": ["a) A component that handles physics collisions", "b) A weapon", "c) A script"],
         "correct": "a"
     },
     {
-        "question": "What is 'Cloud Computing'?",
-        "options": ["a) Computing using weather data", "b) Delivering computing services over the internet", "c) Wireless networking"],
+        "question": "What engine uses C# as its primary scripting language?",
+        "options": ["a) Unreal Engine", "b) Unity", "c) Godot"],
         "correct": "b"
     },
     {
-        "question": "What is a 'Boolean'?",
-        "options": ["a) A text string", "b) A number", "c) A true/false value"],
-        "correct": "c"
+        "question": "What is Raycasting?",
+        "options": ["a) Casting a spell", "b) Projecting a line to detect objects", "c) Rendering shadows"],
+        "correct": "b"
     },
     {
-        "question": "Which is a version control system?",
-        "options": ["a) Git", "b) Node.js", "c) Docker"],
+        "question": "What is FPS?",
+        "options": ["a) First Person Shooter / Frames Per Second", "b) Fast Player Speed", "c) Frames Per Screen"],
         "correct": "a"
     },
     {
-        "question": "What does JSON stand for?",
-        "options": ["a) JavaScript Object Notation", "b) Java Standard Object Network", "c) JavaScript Online Notation"],
-        "correct": "a"
-    },
-
-    # --- HARD / CHALLENGING (MIXED) ---
-    {
-        "question": "What is the output of this Python code?\n```python\ndef f(x, l=[]):\n    l.append(x)\n    return l\nprint(f(1))\nprint(f(2))\n```",
-        "options": ["a) [1] then [2]", "b) [1] then [1, 2]", "c) [1] then [1]"],
-        "correct": "b",
-        "explanation": "Default mutable arguments are evaluated only once at function definition."
-    },
-    {
-        "question": "In C++, what is the 'Diamond Problem' related to?",
-        "options": ["a) Pointer arithmetic", "b) Multiple inheritance", "c) Memory leaks"],
-        "correct": "b"
-    },
-    {
-        "question": "What is the time complexity of QuickSort in the worst case?",
-        "options": ["a) O(n log n)", "b) O(n)", "c) O(n^2)"],
-        "correct": "c",
-        "explanation": "Worst case occurs when the pivot is the smallest or largest element."
-    },
-    {
-        "question": "What is the output of `[] + []` in JavaScript?",
-        "options": ["a) []", "b) '' (Empty String)", "c) 0"],
-        "correct": "b",
-        "explanation": "Arrays are converted to strings and concatenated."
-    },
-    {
-        "question": "What does the Python `GIL` prevent?",
-        "options": ["a) Memory leaks", "b) Multiple threads executing Python bytecodes at once", "c) Deadlocks"],
-        "correct": "b"
-    },
-    {
-        "question": "Which design pattern ensures a class has only one instance?",
-        "options": ["a) Factory", "b) Singleton", "c) Observer"],
-        "correct": "b"
-    },
-    {
-        "question": "What is the result of `0.1 + 0.2 === 0.3` in JavaScript?",
-        "options": ["a) true", "b) false", "c) Error"],
-        "correct": "b",
-        "explanation": "Floating point precision issues make it 0.30000000000000004."
-    },
-    {
-        "question": "In Python, what is a 'metaclass'?",
-        "options": ["a) A class that inherits from itself", "b) A class of a class", "c) A class with static methods"],
-        "correct": "b"
-    },
-    {
-        "question": "What is 'Currying' in functional programming?",
-        "options": ["a) Mixing multiple functions", "b) Transforming a function with multiple arguments into a sequence of functions", "c) Recursive function calls"],
-        "correct": "b"
-    },
-    {
-        "question": "What is the output?\n```python\nx = 10\ndef foo():\n    print(x)\n    x = 20\nfoo()\n```",
-        "options": ["a) 10", "b) 20", "c) UnboundLocalError"],
-        "correct": "c",
-        "explanation": "Python treats `x` as local because of the assignment, but it's accessed before assignment."
-    },
-    {
-        "question": "What is the difference between `process` and `thread`?",
-        "options": ["a) Threads share memory, processes do not", "b) Processes share memory, threads do not", "c) No difference"],
+        "question": "What is a Mesh?",
+        "options": ["a) A collection of vertices, edges, and faces defining a 3D shape", "b) A texture", "c) A network"],
         "correct": "a"
     },
     {
-        "question": "What is a 'Closure' in JavaScript?",
-        "options": ["a) A function with no arguments", "b) A function bundled with its lexical environment", "c) A method to close a window"],
-        "correct": "b"
-    },
-    {
-        "question": "What is the output of `print(type(type(int)))` in Python?",
-        "options": ["a) <class 'type'>", "b) <class 'int'>", "c) <class 'object'>"],
-        "correct": "a"
-    },
-    {
-        "question": "Which of these is NOT a SOLID principle?",
-        "options": ["a) Single Responsibility", "b) Open/Closed", "c) Loop Invariant"],
-        "correct": "c"
-    },
-    {
-        "question": "What is the space complexity of a recursive Fibonacci function without memoization?",
-        "options": ["a) O(1)", "b) O(n)", "c) O(2^n)"],
-        "correct": "b",
-        "explanation": "The stack depth is n."
-    },
-    {
-        "question": "What is 'Deadlock'?",
-        "options": ["a) When a process terminates unexpectedly", "b) When two processes wait for each other indefinitely", "c) A memory error"],
-        "correct": "b"
-    },
-    {
-        "question": "What is the output of `print(all([]))` in Python?",
-        "options": ["a) True", "b) False", "c) Error"],
+        "question": "What is Delta Time?",
+        "options": ["a) The time difference between the current and previous frame", "b) The total game time", "c) A loading screen"],
         "correct": "a",
-        "explanation": "Vacuous truth: all elements in the empty set are true."
+        "explanation": "Used to make movement frame-rate independent."
     },
+    # --- PHP ---
     {
-        "question": "What is 'Polymorphism'?",
-        "options": ["a) Hiding data", "b) Ability of different classes to be treated as instances of the same class", "c) Creating multiple copies of an object"],
+        "question": "What does PHP stand for?",
+        "options": ["a) Personal Home Page", "b) PHP: Hypertext Preprocessor", "c) Private Hosting Platform"],
         "correct": "b"
     },
     {
-        "question": "What is the output of `print(any([]))` in Python?",
-        "options": ["a) True", "b) False", "c) Error"],
+        "question": "How do you start a PHP block?",
+        "options": ["a) <php>", "b) <?php", "c) <script>"],
         "correct": "b"
     },
     {
-        "question": "In SQL, what is a 'Foreign Key'?",
-        "options": ["a) A key used for encryption", "b) A field that links to the primary key of another table", "c) A unique identifier"],
+        "question": "Which symbol starts a variable in PHP?",
+        "options": ["a) @", "b) $", "c) %"],
         "correct": "b"
     },
     {
-        "question": "What is the purpose of `__slots__` in Python?",
-        "options": ["a) To reserve memory", "b) To restrict attribute creation and save memory", "c) To define private methods"],
+        "question": "How do you print text in PHP?",
+        "options": ["a) echo", "b) print", "c) Both"],
+        "correct": "c"
+    },
+    {
+        "question": "Which superglobal holds form data sent via POST?",
+        "options": ["a) $_GET", "b) $_POST", "c) $_REQUEST"],
         "correct": "b"
     },
     {
-        "question": "What is the output of `console.log(1 < 2 < 3)` in JS?",
-        "options": ["a) true", "b) false", "c) Error"],
+        "question": "How do you connect to a MySQL database?",
+        "options": ["a) mysqli_connect()", "b) PDO", "c) Both"],
+        "correct": "c"
+    },
+    # --- OTHER / GENERAL ---
+    {
+        "question": "What is Git?",
+        "options": ["a) A programming language", "b) A version control system", "c) A database"],
+        "correct": "b"
+    },
+    {
+        "question": "What does SQL stand for?",
+        "options": ["a) Structured Query Language", "b) Simple Question Language", "c) System Query List"],
         "correct": "a"
     },
     {
-        "question": "What is the output of `console.log(3 > 2 > 1)` in JS?",
-        "options": ["a) true", "b) false", "c) Error"],
-        "correct": "b",
-        "explanation": "3 > 2 is true (1). 1 > 1 is false."
+        "question": "What is Docker?",
+        "options": ["a) A shipping company", "b) A platform for developing, shipping, and running applications in containers", "c) A code editor"],
+        "correct": "b"
+    },
+    {
+        "question": "What is an API?",
+        "options": ["a) Application Programming Interface", "b) Apple Pie Ingredients", "c) Automated Program Instruction"],
+        "correct": "a"
+    },
+    {
+        "question": "What is Big O Notation?",
+        "options": ["a) A way to measure code complexity/performance", "b) A large letter O", "c) A sorting algorithm"],
+        "correct": "a"
+    },
+    {
+        "question": "What is HTTP?",
+        "options": ["a) HyperText Transfer Protocol", "b) High Tech Transfer Protocol", "c) HyperText Transmission Path"],
+        "correct": "a"
+    },
+    {
+        "question": "What is JSON?",
+        "options": ["a) JavaScript Object Notation", "b) Java Standard Object Name", "c) Just Some Object Notes"],
+        "correct": "a"
+    },
+    {
+        "question": "What is a Bug?",
+        "options": ["a) An insect", "b) An error or flaw in software", "c) A feature"],
+        "correct": "b"
     }
 ]
 
 def get_random_question():
-    """Get a random question from the pool"""
+    """Returns a random question from the list."""
     return random.choice(HARD_QUESTIONS)
-
-def get_questions_by_category(category: str, count: int = 5):
-    """Get random questions from a specific category (future enhancement)"""
-    # TODO: Implement category-based filtering
-    return random.sample(HARD_QUESTIONS, min(count, len(HARD_QUESTIONS)))
-
-def get_question_count():
-    """Get total number of questions available"""
-    return len(HARD_QUESTIONS)

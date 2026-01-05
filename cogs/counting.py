@@ -5,6 +5,7 @@ import aiosqlite
 from utils.codebuddy_database import DB_PATH
 import ast
 import operator
+import random
 
 class Counting(commands.Cog):
     def __init__(self, bot):
@@ -128,15 +129,50 @@ class Counting(commands.Cog):
             await db.commit()
 
     async def fail_count(self, message, current_count, reason):
+        # Roll a die (1-6)
+        dice_roll = random.randint(1, 6)
+        outcome_msg = f"🎲 **Dice Roll: {dice_roll}**\n"
+        
+        new_count = 0
+        new_last_user_id = None # Default for reset/penalty
+        
+        # Determine outcome based on rules
+        # 2, 4, 6 = SAVE
+        # 3 = RESET
+        # 1 = -10 Penalty
+        # 5 = -5 Penalty
+        
+        if dice_roll in [2, 4, 6]:
+            # SAVE
+            new_count = current_count
+            outcome_msg += "✨ **Saved!** The count continues!"
+            # For SAVE, we don't change the count or last_user_id in DB
+        elif dice_roll == 3:
+            # RESET
+            new_count = 0
+            new_last_user_id = None
+            outcome_msg += "💥 **Reset!** The count goes back to 0."
+        elif dice_roll == 1:
+            # -10 Penalty
+            new_count = max(0, current_count - 10)
+            new_last_user_id = None # Reset last user so anyone can pick up
+            outcome_msg += "🔻 **-10 Penalty!** The count drops by 10."
+        elif dice_roll == 5:
+            # -5 Penalty
+            new_count = max(0, current_count - 5)
+            new_last_user_id = None
+            outcome_msg += "🔻 **-5 Penalty!** The count drops by 5."
+
         async with aiosqlite.connect(DB_PATH) as db:
-            # Reset count
-            await db.execute("""
-                UPDATE counting_config 
-                SET current_count = 0, last_user_id = NULL
-                WHERE guild_id = ?
-            """, (message.guild.id,))
+            if dice_roll not in [2, 4, 6]:
+                # Update config with new count for non-save outcomes
+                await db.execute("""
+                    UPDATE counting_config 
+                    SET current_count = ?, last_user_id = ?
+                    WHERE guild_id = ?
+                """, (new_count, new_last_user_id, message.guild.id))
             
-            # Update user stats (ruined)
+            # Update user stats (ruined) - They still triggered the ruin event
             await db.execute("""
                 INSERT INTO counting_stats (user_id, guild_id, total_counts, ruined_counts)
                 VALUES (?, ?, 0, 1)
@@ -145,8 +181,8 @@ class Counting(commands.Cog):
             
             await db.commit()
         
-        await message.add_reaction("❌")
-        await message.channel.send(f"{reason} Count ruined by {message.author.mention} at {current_count}. Next number is 1.")
+        await message.add_reaction("🎲")
+        await message.channel.send(f"{reason} {message.author.mention} messed up at {current_count}!\n{outcome_msg}\nNext number is **{new_count + 1}**.")
 
     @commands.command(name="mcl", aliases=["tc"])
     async def most_count_leaderboard(self, ctx):
