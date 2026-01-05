@@ -6,6 +6,7 @@ from utils.codebuddy_database import DB_PATH
 import ast
 import operator
 import random
+import asyncio
 
 class Counting(commands.Cog):
     def __init__(self, bot):
@@ -129,33 +130,63 @@ class Counting(commands.Cog):
             await db.commit()
 
     async def fail_count(self, message, current_count, reason):
-        # Roll a die (1-6)
+        # 1. Send initial message
+        await message.add_reaction("❌")
+        status_msg = await message.channel.send(
+            f"{reason} {message.author.mention} messed up at {current_count}!\n"
+            "**Rolling the Dice of Fate...**\n"
+            "React with 🎲 to help roll! (Need 3 reactions)"
+        )
+        await status_msg.add_reaction("🎲")
+
+        # 2. Wait for reactions
+        try:
+            end_time = asyncio.get_event_loop().time() + 60
+            while True:
+                # Check current count
+                status_msg = await message.channel.fetch_message(status_msg.id)
+                reaction = discord.utils.get(status_msg.reactions, emoji="🎲")
+                
+                # If bot reacted, count is at least 1. We need 3 total.
+                if reaction and reaction.count >= 3:
+                    break
+                
+                timeout = end_time - asyncio.get_event_loop().time()
+                if timeout <= 0:
+                    break
+                
+                try:
+                    # Wait for any reaction on this message
+                    await self.bot.wait_for(
+                        'reaction_add', 
+                        check=lambda r, u: r.message.id == status_msg.id and str(r.emoji) == "🎲", 
+                        timeout=timeout
+                    )
+                except asyncio.TimeoutError:
+                    break
+        except Exception:
+            pass # Proceed if something fails
+
+        # 3. Roll logic
         dice_roll = random.randint(1, 6)
-        outcome_msg = f"🎲 **Dice Roll: {dice_roll}**\n"
+        outcome_msg = f"**Dice Roll: {dice_roll}**\n"
         
         new_count = 0
-        new_last_user_id = None # Default for reset/penalty
-        
-        # Determine outcome based on rules
-        # 2, 4, 6 = SAVE
-        # 3 = RESET
-        # 1 = -10 Penalty
-        # 5 = -5 Penalty
+        new_last_user_id = None 
         
         if dice_roll in [2, 4, 6]:
             # SAVE
             new_count = current_count
-            outcome_msg += "✨ **Saved!** The count continues!"
-            # For SAVE, we don't change the count or last_user_id in DB
+            outcome_msg += "**Saved!** The count continues!"
         elif dice_roll == 3:
             # RESET
             new_count = 0
             new_last_user_id = None
-            outcome_msg += "💥 **Reset!** The count goes back to 0."
+            outcome_msg += "**Reset!** The count goes back to 0."
         elif dice_roll == 1:
             # -10 Penalty
             new_count = max(0, current_count - 10)
-            new_last_user_id = None # Reset last user so anyone can pick up
+            new_last_user_id = None
             outcome_msg += "🔻 **-10 Penalty!** The count drops by 10."
         elif dice_roll == 5:
             # -5 Penalty
@@ -163,16 +194,15 @@ class Counting(commands.Cog):
             new_last_user_id = None
             outcome_msg += "🔻 **-5 Penalty!** The count drops by 5."
 
+        # 4. Update DB
         async with aiosqlite.connect(DB_PATH) as db:
             if dice_roll not in [2, 4, 6]:
-                # Update config with new count for non-save outcomes
                 await db.execute("""
                     UPDATE counting_config 
                     SET current_count = ?, last_user_id = ?
                     WHERE guild_id = ?
                 """, (new_count, new_last_user_id, message.guild.id))
             
-            # Update user stats (ruined) - They still triggered the ruin event
             await db.execute("""
                 INSERT INTO counting_stats (user_id, guild_id, total_counts, ruined_counts)
                 VALUES (?, ?, 0, 1)
@@ -181,8 +211,8 @@ class Counting(commands.Cog):
             
             await db.commit()
         
-        await message.add_reaction("🎲")
-        await message.channel.send(f"{reason} {message.author.mention} messed up at {current_count}!\n{outcome_msg}\nNext number is **{new_count + 1}**.")
+        # 5. Edit message
+        await status_msg.edit(content=f"{reason} {message.author.mention} messed up at {current_count}!\n{outcome_msg}\nNext number is **{new_count + 1}**.")
 
     @commands.command(name="mcl", aliases=["tc"])
     async def most_count_leaderboard(self, ctx):
