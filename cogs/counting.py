@@ -134,12 +134,13 @@ class Counting(commands.Cog):
         await message.add_reaction("❌")
         status_msg = await message.channel.send(
             f"{reason} {message.author.mention} messed up at {current_count}!\n"
-            "**Rolling the Dice of Fate...**\n"
-            "React with 🎲 to help roll! (Need 3 reactions)"
+            "🎲 **Rolling the Dice of Fate...**\n"
+            "React with 🎲 to help roll! (Need 2 reactions in 60s)"
         )
         await status_msg.add_reaction("🎲")
 
         # 2. Wait for reactions
+        reactions_collected = False
         try:
             end_time = asyncio.get_event_loop().time() + 60
             while True:
@@ -147,8 +148,9 @@ class Counting(commands.Cog):
                 status_msg = await message.channel.fetch_message(status_msg.id)
                 reaction = discord.utils.get(status_msg.reactions, emoji="🎲")
                 
-                # If bot reacted, count is at least 1. We need 3 total.
-                if reaction and reaction.count >= 3:
+                # If bot reacted, count is at least 1. We need 2 total.
+                if reaction and reaction.count >= 2:
+                    reactions_collected = True
                     break
                 
                 timeout = end_time - asyncio.get_event_loop().time()
@@ -167,51 +169,75 @@ class Counting(commands.Cog):
         except Exception:
             pass # Proceed if something fails
 
-        # 3. Roll logic
-        dice_roll = random.randint(1, 6)
-        outcome_msg = f"**Dice Roll: {dice_roll}**\n"
-        
+        # 3. Determine Outcome
+        outcome_msg = ""
         new_count = 0
-        new_last_user_id = None 
+        new_last_user_id = None
         
-        if dice_roll in [2, 4, 6]:
-            # SAVE
-            new_count = current_count
-            outcome_msg += "**Saved!** The count continues!"
-        elif dice_roll == 3:
-            # RESET
+        if not reactions_collected:
+            # TIMEOUT / NOT ENOUGH REACTIONS -> RESET
             new_count = 0
             new_last_user_id = None
-            outcome_msg += "**Reset!** The count goes back to 0."
-        elif dice_roll == 1:
-            # -10 Penalty
-            new_count = max(0, current_count - 10)
-            new_last_user_id = None
-            outcome_msg += "🔻 **-10 Penalty!** The count drops by 10."
-        elif dice_roll == 5:
-            # -5 Penalty
-            new_count = max(0, current_count - 5)
-            new_last_user_id = None
-            outcome_msg += "🔻 **-5 Penalty!** The count drops by 5."
-
-        # 4. Update DB
-        async with aiosqlite.connect(DB_PATH) as db:
-            if dice_roll not in [2, 4, 6]:
+            outcome_msg = "⏳ **Time's up!** Not enough people helped roll the dice.\n💥 **Reset!** The count goes back to 0."
+            
+            # DB Update for Reset
+            async with aiosqlite.connect(DB_PATH) as db:
                 await db.execute("""
                     UPDATE counting_config 
-                    SET current_count = ?, last_user_id = ?
+                    SET current_count = 0, last_user_id = NULL
                     WHERE guild_id = ?
-                """, (new_count, new_last_user_id, message.guild.id))
+                """, (message.guild.id,))
+                
+                await db.execute("""
+                    INSERT INTO counting_stats (user_id, guild_id, total_counts, ruined_counts)
+                    VALUES (?, ?, 0, 1)
+                    ON CONFLICT(user_id, guild_id) DO UPDATE SET ruined_counts = ruined_counts + 1
+                """, (message.author.id, message.guild.id))
+                await db.commit()
+
+        else:
+            # REACTIONS COLLECTED -> ROLL DICE
+            dice_roll = random.randint(1, 6)
+            outcome_msg = f"🎲 **Dice Roll: {dice_roll}**\n"
             
-            await db.execute("""
-                INSERT INTO counting_stats (user_id, guild_id, total_counts, ruined_counts)
-                VALUES (?, ?, 0, 1)
-                ON CONFLICT(user_id, guild_id) DO UPDATE SET ruined_counts = ruined_counts + 1
-            """, (message.author.id, message.guild.id))
-            
-            await db.commit()
+            if dice_roll in [2, 4, 6]:
+                # SAVE
+                new_count = current_count
+                outcome_msg += "✨ **Saved!** The count continues!"
+            elif dice_roll == 3:
+                # RESET
+                new_count = 0
+                new_last_user_id = None
+                outcome_msg += "💥 **Reset!** The count goes back to 0."
+            elif dice_roll == 1:
+                # -10 Penalty
+                new_count = max(0, current_count - 10)
+                new_last_user_id = None
+                outcome_msg += "🔻 **-10 Penalty!** The count drops by 10."
+            elif dice_roll == 5:
+                # -5 Penalty
+                new_count = max(0, current_count - 5)
+                new_last_user_id = None
+                outcome_msg += "🔻 **-5 Penalty!** The count drops by 5."
+
+            # DB Update for Roll Outcome
+            async with aiosqlite.connect(DB_PATH) as db:
+                if dice_roll not in [2, 4, 6]:
+                    await db.execute("""
+                        UPDATE counting_config 
+                        SET current_count = ?, last_user_id = ?
+                        WHERE guild_id = ?
+                    """, (new_count, new_last_user_id, message.guild.id))
+                
+                await db.execute("""
+                    INSERT INTO counting_stats (user_id, guild_id, total_counts, ruined_counts)
+                    VALUES (?, ?, 0, 1)
+                    ON CONFLICT(user_id, guild_id) DO UPDATE SET ruined_counts = ruined_counts + 1
+                """, (message.author.id, message.guild.id))
+                
+                await db.commit()
         
-        # 5. Edit message
+        # 4. Edit message
         await status_msg.edit(content=f"{reason} {message.author.mention} messed up at {current_count}!\n{outcome_msg}\nNext number is **{new_count + 1}**.")
 
     @commands.command(name="mcl", aliases=["tc"])
