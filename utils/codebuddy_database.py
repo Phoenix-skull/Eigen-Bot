@@ -25,9 +25,16 @@ async def init_db():
                 voted_today INTEGER NOT NULL DEFAULT 0,
                 quest_completed INTEGER NOT NULL DEFAULT 0,
                 streak_freezes INTEGER NOT NULL DEFAULT 0,
-                bonus_hints INTEGER NOT NULL DEFAULT 0
+                bonus_hints INTEGER NOT NULL DEFAULT 0,
+                saves REAL NOT NULL DEFAULT 0
             )
         """)
+        
+        # Check for missing columns in daily_quests
+        cursor = await db.execute("PRAGMA table_info(daily_quests)")
+        dq_columns = [row[1] async for row in cursor]
+        if "saves" not in dq_columns:
+            await db.execute("ALTER TABLE daily_quests ADD COLUMN saves REAL NOT NULL DEFAULT 0")
         
         # Weekly leaderboard table
         # Note: user_id is NOT a primary key here because we might want to store history,
@@ -77,9 +84,100 @@ async def init_db():
                 PRIMARY KEY (user_id, week_start)
             )
         """)
+
+        # Counting game tables
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS counting_config (
+                guild_id INTEGER PRIMARY KEY,
+                channel_id INTEGER,
+                current_count INTEGER NOT NULL DEFAULT 0,
+                last_user_id INTEGER,
+                high_score INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS counting_stats (
+                user_id INTEGER,
+                guild_id INTEGER,
+                total_counts INTEGER NOT NULL DEFAULT 0,
+                ruined_counts INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (user_id, guild_id)
+            )
+        """)
+
+        # Truth or Dare table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS tod_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT NOT NULL,
+                question TEXT NOT NULL,
+                rating TEXT DEFAULT 'PG'
+            )
+        """)
+        
+        # Check if TOD table is empty, if so populate it
+        async with db.execute("SELECT COUNT(*) FROM tod_questions") as cursor:
+            count = await cursor.fetchone()
+            if count[0] == 0:
+                await populate_tod_questions(db)
         
         await db.commit()
         await migrate_leaderboard()  # Prüft und fügt fehlende Spalten hinzu
+
+async def populate_tod_questions(db):
+    """Populate the TOD table with default questions."""
+    truths = [
+        "What is your biggest fear?",
+        "What is the most embarrassing thing you have ever done?",
+        "What is your biggest secret?",
+        "Who is your secret crush?",
+        "What is the worst lie you have ever told?",
+        "What is your most regretful purchase?",
+        "What is the most trouble you have ever been in?",
+        "What is your favorite holiday and why?",
+        "What is your dream job?",
+        "If you could be any animal, what would you be?",
+        "What is your favorite movie?",
+        "What is your favorite song?",
+        "What is your favorite food?",
+        "What is your favorite color?",
+        "What is your favorite hobby?",
+        "Have you ever cheated on a test?",
+        "Have you ever peed in a pool?",
+        "Have you ever broken a bone?",
+        "Have you ever been to another country?",
+        "Have you ever met a celebrity?"
+    ]
+    
+    dares = [
+        "Do 10 pushups.",
+        "Sing a song.",
+        "Dance for 1 minute.",
+        "Tell a joke.",
+        "Do an impression of someone.",
+        "Speak in an accent for the next 3 rounds.",
+        "Let someone else style your hair.",
+        "Eat a spoonful of mustard.",
+        "Drink a glass of water without using your hands.",
+        "Balance a spoon on your nose for 10 seconds.",
+        "Walk backwards for the next 3 rounds.",
+        "Don't blink for 30 seconds.",
+        "Hold your breath for 30 seconds.",
+        "Spin around 10 times and try to walk in a straight line.",
+        "Do a cartwheel.",
+        "Do a handstand.",
+        "Touch your toes.",
+        "Lick your elbow.",
+        "Wiggle your ears.",
+        "Raise one eyebrow."
+    ]
+    
+    for t in truths:
+        await db.execute("INSERT INTO tod_questions (type, question) VALUES (?, ?)", ("truth", t))
+    
+    for d in dares:
+        await db.execute("INSERT INTO tod_questions (type, question) VALUES (?, ?)", ("dare", d))
 
 async def migrate_leaderboard():
     """Fügt fehlende Spalten hinzu, falls die Tabelle schon existierte ohne diese Spalten."""

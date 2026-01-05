@@ -5,18 +5,17 @@ Misc commands cog.
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional
-from datetime import datetime, timezone
+from typing import Optional, Any, Union
+from datetime import datetime, timezone, timedelta
 import calendar
 
 from utils.config import Config
-from bot import Fun2OoshBot
 
 
 class Misc(commands.Cog):
     """Miscellaneous commands."""
 
-    def __init__(self, bot: Fun2OoshBot, config: Config):
+    def __init__(self, bot: commands.Bot, config: Config):
         self.bot = bot
         self.config = config
 
@@ -164,30 +163,29 @@ class Misc(commands.Cog):
             
         elif music_activity:
             # Found other music activity (not Spotify)
-            if True:
-                # Generic music activity
-                embed = discord.Embed(
-                    title="Now Listening",
-                    description=f"{target_user.display_name}",
-                    color=0x000000
-                )
-                
-                embed.add_field(
-                    name="Activity",
-                    value=f"**{music_activity.name}**",
-                    inline=False
-                )
-                
-                # Use getattr to safely access optional attributes
-                details = getattr(music_activity, 'details', None)
-                if details:
-                    embed.add_field(name="Details", value=details, inline=False)
-                
-                state = getattr(music_activity, 'state', None)
-                if state:
-                    embed.add_field(name="State", value=state, inline=False)
-                
-                embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+            # Generic music activity
+            embed = discord.Embed(
+                title="Now Listening",
+                description=f"{target_user.display_name}",
+                color=0x000000
+            )
+            
+            embed.add_field(
+                name="Activity",
+                value=f"**{music_activity.name}**",
+                inline=False
+            )
+            
+            # Use getattr to safely access optional attributes
+            details = getattr(music_activity, 'details', None)
+            if details:
+                embed.add_field(name="Details", value=details, inline=False)
+            
+            state = getattr(music_activity, 'state', None)
+            if state:
+                embed.add_field(name="State", value=state, inline=False)
+            
+            embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
         else:
             # No music activity found - show debug info
             if target_user == ctx.author:
@@ -234,12 +232,13 @@ class Misc(commands.Cog):
     @commands.command(name='uptime', hidden=True)
     async def uptime(self, ctx: commands.Context):
         """Show the bot's uptime."""
-        if not hasattr(self.bot, 'start_time'):
+        start_time = getattr(self.bot, 'start_time', None)
+        if not start_time:
             await ctx.send("Start time not tracked.")
             return
 
         now = discord.utils.utcnow()
-        delta = now - self.bot.start_time
+        delta = now - start_time
         
         days = delta.days
         hours, remainder = divmod(delta.seconds, 3600)
@@ -270,8 +269,9 @@ class Misc(commands.Cog):
         embed.add_field(name="Users", value=str(users), inline=True)
         embed.add_field(name="Latency", value=f"{latency}ms", inline=True)
         
-        if hasattr(self.bot, 'start_time'):
-             embed.add_field(name="Start Time", value=discord.utils.format_dt(self.bot.start_time, 'R'), inline=True)
+        start_time = getattr(self.bot, 'start_time', None)
+        if start_time:
+             embed.add_field(name="Start Time", value=discord.utils.format_dt(start_time, 'R'), inline=True)
 
         await ctx.send(embed=embed)
 
@@ -503,8 +503,8 @@ class Misc(commands.Cog):
         year: int,
         month: app_commands.Range[int, 1, 12],
         day: app_commands.Range[int, 1, 31],
-        hour: app_commands.Range[int, 0, 23] = None,
-        minute: app_commands.Range[int, 0, 59] = None,
+        hour: Optional[app_commands.Range[int, 0, 23]] = None,
+        minute: Optional[app_commands.Range[int, 0, 59]] = None,
         utc_offset: float = 0.0
     ):
         """Generate Discord timestamps with all available formats."""
@@ -542,7 +542,6 @@ class Misc(commands.Cog):
             # Convert to UTC by subtracting the offset
             utc_dt = user_dt.replace(tzinfo=None)
             # Subtract offset to get UTC time
-            from datetime import timedelta
             utc_dt = utc_dt - timedelta(hours=offset_hours, minutes=offset_minutes)
             
             # Get Unix timestamp
@@ -609,13 +608,28 @@ class Misc(commands.Cog):
     async def say(self, interaction: discord.Interaction, text: str):
         """Make the bot send a message (admin only to prevent abuse)."""
         # Double-check permissions (extra safety)
-        if not interaction.user.guild_permissions.administrator:
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.",
+                ephemeral=True
+            )
+            return
+
+        if not isinstance(interaction.user, discord.Member) or not interaction.user.guild_permissions.administrator:
             await interaction.response.send_message(
                 "❌ This command is restricted to administrators only.",
                 ephemeral=True
             )
             return
         
+        # Check if channel is messageable
+        if not isinstance(interaction.channel, discord.abc.Messageable):
+             await interaction.response.send_message(
+                "❌ Cannot send messages in this channel type.",
+                ephemeral=True
+            )
+             return
+
         # Send the text in the channel
         await interaction.channel.send(text)
         

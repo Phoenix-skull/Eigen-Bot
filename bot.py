@@ -98,6 +98,10 @@ class Fun2OoshBot(commands.Bot):
             'cogs.codebuddy_flex',
             'cogs.codebuddy_leaderboard',
             'cogs.codebuddy_help',
+            'cogs.counting',
+            'cogs.tod',
+
+
             'cogs.daily_quests',
         ]
 

@@ -1,0 +1,214 @@
+import discord
+from discord.ext import commands
+from discord import app_commands
+import aiosqlite
+from utils.codebuddy_database import DB_PATH
+import ast
+import operator
+
+class Counting(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(name="setcountingchannel", description="Set the channel for the counting game")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def setcountingchannel(self, interaction: discord.Interaction, channel: discord.TextChannel):
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("""
+                INSERT INTO counting_config (guild_id, channel_id)
+                VALUES (?, ?)
+                ON CONFLICT(guild_id) DO UPDATE SET channel_id = excluded.channel_id
+            """, (interaction.guild_id, channel.id))
+            await db.commit()
+        
+        await interaction.response.send_message(f"Counting channel set to {channel.mention}", ephemeral=True)
+
+    def safe_eval(self, expr):
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.Pow: operator.pow,
+            ast.BitXor: operator.pow, # Allow ^ for power
+            ast.USub: operator.neg
+        }
+
+        def eval_node(node):
+            if isinstance(node, ast.Constant):
+                if isinstance(node.value, (int, float)):
+                    return node.value
+                raise TypeError("Not a number")
+            elif isinstance(node, ast.BinOp):
+                op = type(node.op)
+                if op in operators:
+                    left = eval_node(node.left)
+                    right = eval_node(node.right)
+                    if op in (ast.Pow, ast.BitXor):
+                        if right > 100: # Limit exponent
+                            raise ValueError("Exponent too large")
+                    return operators[op](left, right)
+            elif isinstance(node, ast.UnaryOp):
+                op = type(node.op)
+                if op in operators:
+                    return operators[op](eval_node(node.operand))
+            raise TypeError("Unsupported type")
+
+        try:
+            tree = ast.parse(expr, mode='eval')
+            return eval_node(tree.body)
+        except Exception:
+            return None
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if message.author.bot or not message.guild:
+            return
+
+        # Check if this is a counting channel
+        async with aiosqlite.connect(DB_PATH) as db:
+            async with db.execute("SELECT channel_id, current_count, last_user_id, high_score FROM counting_config WHERE guild_id = ?", (message.guild.id,)) as cursor:
+                config = await cursor.fetchone()
+            
+            if not config or message.channel.id != config[0]:
+                return
+
+            channel_id, current_count, last_user_id, high_score = config
+
+            # Try to parse the number
+            content = message.content.strip()
+            
+            if not content:
+                return
+
+            # Evaluate math expression
+            number = self.safe_eval(content)
+            
+            if number is None:
+                return # Not a valid number/expression
+
+            # Check if it's an integer result
+            if isinstance(number, float):
+                if number.is_integer():
+                    number = int(number)
+                else:
+                    # Result is not an integer (e.g. 2.5), so it can't be the next count
+                    # We treat this as a wrong number -> fail
+                    pass
+
+            # Check rules
+            next_count = current_count + 1
+            
+            if number != next_count:
+                await self.fail_count(message, current_count, "Wrong number!")
+                return
+
+            if message.author.id == last_user_id:
+                await self.fail_count(message, current_count, "You can't count twice in a row!")
+                return
+
+            # Valid count
+            await message.add_reaction("✅")
+            
+            new_high_score = max(high_score, next_count)
+            
+            await db.execute("""
+                UPDATE counting_config 
+                SET current_count = ?, last_user_id = ?, high_score = ?
+                WHERE guild_id = ?
+            """, (next_count, message.author.id, new_high_score, message.guild.id))
+            
+            # Update user stats
+            await db.execute("""
+                INSERT INTO counting_stats (user_id, guild_id, total_counts, ruined_counts)
+                VALUES (?, ?, 1, 0)
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET total_counts = total_counts + 1
+            """, (message.author.id, message.guild.id))
+            
+            await db.commit()
+
+    async def fail_count(self, message, current_count, reason):
+        async with aiosqlite.connect(DB_PATH) as db:
+            # Reset count
+            await db.execute("""
+                UPDATE counting_config 
+                SET current_count = 0, last_user_id = NULL
+                WHERE guild_id = ?
+            """, (message.guild.id,))
+            
+            # Update user stats (ruined)
+            await db.execute("""
+                INSERT INTO counting_stats (user_id, guild_id, total_counts, ruined_counts)
+                VALUES (?, ?, 0, 1)
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET ruined_counts = ruined_counts + 1
+            """, (message.author.id, message.guild.id))
+            
+            await db.commit()
+        
+        await message.add_reaction("❌")
+        await message.channel.send(f"{reason} Count ruined by {message.author.mention} at {current_count}. Next number is 1.")
+
+    @commands.command(name="mcl", aliases=["tc"])
+    async def most_count_leaderboard(self, ctx):
+        async with aiosqlite.connect(DB_PATH) as db:
+            async with db.execute("""
+                SELECT user_id, total_counts 
+                FROM counting_stats 
+                WHERE guild_id = ? 
+                ORDER BY total_counts DESC 
+                LIMIT 10
+            """, (ctx.guild.id,)) as cursor:
+                rows = await cursor.fetchall()
+        
+        if not rows:
+            await ctx.send("No counting stats yet.")
+            return
+
+        embed = discord.Embed(title="Most Count Leaderboard", color=discord.Color.blue())
+        description = ""
+        for i, (user_id, count) in enumerate(rows, 1):
+            description += f"{i}. <@{user_id}>: {count}\n"
+        embed.description = description
+        await ctx.send(embed=embed)
+
+    @commands.command(name="mrl")
+    async def most_ruined_leaderboard(self, ctx):
+        async with aiosqlite.connect(DB_PATH) as db:
+            async with db.execute("""
+                SELECT user_id, ruined_counts 
+                FROM counting_stats 
+                WHERE guild_id = ? 
+                ORDER BY ruined_counts DESC 
+                LIMIT 10
+            """, (ctx.guild.id,)) as cursor:
+                rows = await cursor.fetchall()
+        
+        if not rows:
+            await ctx.send("No ruined stats yet.")
+            return
+
+        embed = discord.Embed(title="Most Ruined Leaderboard", color=discord.Color.red())
+        description = ""
+        for i, (user_id, count) in enumerate(rows, 1):
+            description += f"{i}. <@{user_id}>: {count}\n"
+        embed.description = description
+        await ctx.send(embed=embed)
+
+    @commands.command(name="scs")
+    async def server_count_stats(self, ctx):
+        async with aiosqlite.connect(DB_PATH) as db:
+            async with db.execute("SELECT current_count, high_score FROM counting_config WHERE guild_id = ?", (ctx.guild.id,)) as cursor:
+                row = await cursor.fetchone()
+        
+        if not row:
+            await ctx.send("Counting channel not set up or no data.")
+            return
+            
+        current, high = row
+        embed = discord.Embed(title="Server Count Stats", color=discord.Color.green())
+        embed.add_field(name="Current Count", value=str(current))
+        embed.add_field(name="High Score", value=str(high))
+        await ctx.send(embed=embed)
+
+async def setup(bot):
+    await bot.add_cog(Counting(bot))
