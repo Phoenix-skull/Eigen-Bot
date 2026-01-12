@@ -8,7 +8,6 @@ It uses discord.py for interactions and supports both slash commands and message
 import asyncio
 import logging
 import os
-from typing import Optional
 
 import discord
 from discord import app_commands
