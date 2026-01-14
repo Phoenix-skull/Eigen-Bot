@@ -613,7 +613,6 @@ HARD_QUESTIONS = [
 ]
 
 _question_pool = HARD_QUESTIONS.copy()
-random.shuffle(_question_pool)
 _index = 0
 
 
